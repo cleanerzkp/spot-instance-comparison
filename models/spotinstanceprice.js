@@ -1,33 +1,30 @@
 'use strict';
-const {
-  Model
-} = require('sequelize');
+const { Model } = require('sequelize');
 module.exports = (sequelize, DataTypes) => {
-  class SpotInstancePrice extends Model {
-    /**
-     * Helper method for defining associations.
-     * This method is not a part of Sequelize lifecycle.
-     * The `models/index` file will call this method automatically.
-     */
+  class SpotInstancePricing extends Model {
     static associate(models) {
       // define association here
     }
   }
-  SpotInstancePrice.init({
-    provider_name: DataTypes.STRING,
-    instance_type: DataTypes.STRING,
-    region: DataTypes.STRING,
-    availability_zone: DataTypes.STRING,
-    operating_system: DataTypes.STRING,
-    ram: DataTypes.STRING,
-    cpu: DataTypes.STRING,
-    storage: DataTypes.STRING,
-    network: DataTypes.STRING,
-    price: DataTypes.DECIMAL,
-    timestamp: DataTypes.DATE
+  SpotInstancePricing.init({
+    CloudProvider: DataTypes.STRING,
+    InstanceType: DataTypes.STRING,
+    EquivalentStandardSKU: DataTypes.STRING,
+    RAM_GB: DataTypes.INTEGER,
+    CPU_Cores: DataTypes.INTEGER,
+    NetworkPerformance: DataTypes.STRING,
+    DiskIO: DataTypes.STRING,
+    GPU: DataTypes.STRING,
+    PricePerHour_USD: DataTypes.DECIMAL(10, 2),
+    Region: DataTypes.STRING,
+    Timestamp: DataTypes.DATE,
+    OriginalAPIResponse: DataTypes.JSONB,
+    TransformedAPIResponse: DataTypes.JSONB,
+    AdditionalInfo: DataTypes.JSONB
   }, {
     sequelize,
-    modelName: 'SpotInstancePrice',
+    modelName: 'SpotInstancePricing',
+    tableName: 'spot_instance_pricing',
   });
-  return SpotInstancePrice;
+  return SpotInstancePricing;
 };
