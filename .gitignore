@@ -1,0 +1,16 @@
+# Node.js dependencies:
+node_modules/
+
+# Environment variables:
+.env
+
+# IDE / Editor folders and files:
+.vscode/
+.idea/
+
+# Operating System generated files:
+.DS_Store
+Thumbs.db
+
+# Database files (if stored locally):
+database/*.sqlite
