@@ -1,0 +1,2 @@
+# spot-instance-comparison
+init
