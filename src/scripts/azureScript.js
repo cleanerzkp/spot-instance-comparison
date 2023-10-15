@@ -1,16 +1,23 @@
 const axios = require('axios');
+const SpotInstancePricing = require('../../models/spotinstanceprice.js');
 
 async function fetchAzureSpotPrices() {
-  try {
-    const response = await axios.get('https://prices.azure.com/api/retail/prices', {
-      params: {
-        "$filter": "armRegionName eq 'eastus' and productFamily eq 'Virtual Machines' and priceType eq 'Spot' and (armSkuName eq 'Standard_D2s_v3' or armSkuName eq 'Standard_E2s_v3' or armSkuName eq 'Standard_F2s_v2')"
-      }
-    });
-    return response.data;
-  } catch (error) {
-    console.error(error);
-  }
+    try {
+        const params = {
+            "$filter": "serviceName eq 'Virtual Machines' and contains(meterName, 'Spot')",
+            "api-version": "2023-01-01-preview"
+        };
+
+        const response = await axios.get('https://prices.azure.com/api/retail/prices', { params });
+
+        if (response.status === 200) {
+            console.log(response.data);
+        } else {
+            console.error(`Request failed with status ${response.status}`);
+        }
+    } catch (error) {
+        console.error(`Request failed with error: ${error.message}`);
+    }
 }
 
-module.exports = fetchAzureSpotPrices;
+fetchAzureSpotPrices();
