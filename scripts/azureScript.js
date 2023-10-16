@@ -1,7 +1,6 @@
 const axios = require('axios');
 const db = require('../models/index');
 const SpotInstancePricing = db.SpotInstancePricing;
-
 async function fetchAzureSpotPrices() {
     try {
         const params = {
@@ -16,6 +15,7 @@ async function fetchAzureSpotPrices() {
                 await SpotInstancePricing.create({
                     CloudProvider: 'Azure',
                     InstanceType: item.armSkuName,
+                    PricePerHour_USD: item.retailPrice,  // Assume that retailPrice is the price per hour
                     // ... (map other fields accordingly)
                 });
             }
