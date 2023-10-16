@@ -28,5 +28,5 @@ module.exports = (sequelize, DataTypes) => {
     modelName: 'SpotInstancePricing',
     tableName: 'spot_instance_pricing',
   });
-  return SpotInstancePricing;
+  return SpotInstancePricing
 };

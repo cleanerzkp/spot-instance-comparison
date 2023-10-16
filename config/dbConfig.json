@@ -4,8 +4,8 @@
     "password": "QWERTYUIOP",
     "database": "spot_instance_comparison",
     "host": "127.0.0.1",
-    "dialect": "postgres",
-    "operatorsAliases": false
+    "dialect": "postgres"
+    
   },
   "test": {
     "username": "root",
