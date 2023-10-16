@@ -30,7 +30,7 @@ async function main() {
   }
 
   // Step 3: Insert Data into Database
-  try {
+try {
     console.log('Inserting data into database...');
     for (const item of response.data.Items) {
       const createdRecord = await SpotInstancePricing.create({
@@ -48,13 +48,14 @@ async function main() {
         ServiceFamily: item.serviceFamily,
         UnitOfMeasure: item.unitOfMeasure,
       }).catch(error => console.error(`Database operation failed: ${error}`));
-
+  
       console.log('Created record:', createdRecord.dataValues);
     }
     console.log('Data insertion completed successfully.');
   } catch (error) {
     console.error('Data insertion failed:', error);
   }
+  
 
   // Step 4: Check Data in Database
   try {
