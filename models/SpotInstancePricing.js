@@ -9,18 +9,20 @@ module.exports = (sequelize, DataTypes) => {
   SpotInstancePricing.init({
     CloudProvider: DataTypes.STRING,
     InstanceType: DataTypes.STRING,
-    EquivalentStandardSKU: DataTypes.STRING,
-    RAM_GB: DataTypes.INTEGER,
-    CPU_Cores: DataTypes.INTEGER,
-    NetworkPerformance: DataTypes.STRING,
-    DiskIO: DataTypes.STRING,
-    GPU: DataTypes.STRING,
-    PricePerHour_USD: DataTypes.DECIMAL(10, 2),
     Region: DataTypes.STRING,
-    Timestamp: DataTypes.DATE,
+    PricePerHour_USD: DataTypes.DECIMAL(10, 2),
+    EffectiveStartDate: DataTypes.DATE,
     OriginalAPIResponse: DataTypes.JSONB,
-    TransformedAPIResponse: DataTypes.JSONB,
-    AdditionalInfo: DataTypes.JSONB
+    AdditionalInfo: DataTypes.JSONB,
+    // other atriubutes?
+    Location: DataTypes.STRING,
+    MeterName: DataTypes.STRING,
+    ProductName: DataTypes.STRING,
+    SkuName: DataTypes.STRING,
+    ServiceName: DataTypes.STRING,
+    ServiceFamily: DataTypes.STRING,
+    UnitOfMeasure: DataTypes.STRING,
+    // ... 
   }, {
     sequelize,
     modelName: 'SpotInstancePricing',

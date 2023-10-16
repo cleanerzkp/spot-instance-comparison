@@ -1,5 +1,6 @@
 const axios = require('axios');
-const SpotInstancePricing = require('../../models/spotinstanceprice.js');
+const db = require('../models/index');
+const SpotInstancePricing = db.SpotInstancePricing;
 
 async function fetchAzureSpotPrices() {
     try {
@@ -11,7 +12,13 @@ async function fetchAzureSpotPrices() {
         const response = await axios.get('https://prices.azure.com/api/retail/prices', { params });
 
         if (response.status === 200) {
-            console.log(response.data);
+            for (const item of response.data.Items) {
+                await SpotInstancePricing.create({
+                    CloudProvider: 'Azure',
+                    InstanceType: item.armSkuName,
+                    // ... (map other fields accordingly)
+                });
+            }
         } else {
             console.error(`Request failed with status ${response.status}`);
         }
