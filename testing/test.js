@@ -17,7 +17,7 @@ async function main() {
   try {
     const params = {
       "$filter": "serviceName eq 'Virtual Machines' and contains(meterName, 'Spot')",
-      "$top": 2,
+      "$top": 1000,
       "api-version": "2023-01-01-preview"
     };
     console.log('Fetching data from API...');
