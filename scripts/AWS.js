@@ -6,7 +6,7 @@ const { exec } = require('child_process');
 
 async function fetchAWSSpotPrices() {
     return new Promise((resolve, reject) => {
-        exec('aws ec2 describe-spot-price-history --region us-east-1 --max-items 20', (error, stdout, stderr) => {
+        exec('aws ec2 describe-spot-price-history --region us-east-1 --max-items 10 --product-descriptions "Linux/UNIX" --query "SpotPriceHistory[*].{InstanceType:InstanceType, SpotPrice:SpotPrice, Timestamp:Timestamp}"', (error, stdout, stderr) => {
             if (error) {
                 console.error(`Error: ${error.message}`);
                 return reject(error);
@@ -23,16 +23,10 @@ async function fetchAWSSpotPrices() {
     });
 }
 
-// Function to filter spot prices for Linux/UNIX instances
-function filterLinuxUnixPrices(spotPrices) {
-    return spotPrices.filter(spotPrice => spotPrice.ProductDescription === 'Linux/UNIX');
-}
-
 // Call the function to start fetching data
 fetchAWSSpotPrices()
     .then(result => {
-        const linuxUnixPrices = filterLinuxUnixPrices(result.SpotPriceHistory);
-        console.log('Linux/UNIX Spot Prices:', linuxUnixPrices);
+        console.log('Linux/UNIX Spot Prices:', result);
     })
     .catch(error => {
         console.error('Error fetching AWS Spot Prices:', error.message);
