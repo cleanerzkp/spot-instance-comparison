@@ -6,7 +6,7 @@ const { exec } = require('child_process');
 
 async function fetchAWSSpotPrices() {
     return new Promise((resolve, reject) => {
-        exec('aws ec2 describe-spot-price-history --region us-east-1 --max-items 10 --product-descriptions "Linux/UNIX" --query "SpotPriceHistory[*].{InstanceType:InstanceType, SpotPrice:SpotPrice, Timestamp:Timestamp}"', (error, stdout, stderr) => {
+        exec('aws ec2 describe-spot-price-history --region us-east-1 --max-items 10 --product-descriptions "Linux/UNIX" --output json', (error, stdout, stderr) => {
             if (error) {
                 console.error(`Error: ${error.message}`);
                 return reject(error);
