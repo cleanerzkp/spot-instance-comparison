@@ -1,11 +1,14 @@
 const axios = require('axios');
-const moment = require('moment'); 
+const moment = require('moment');
 
-async function fetchAzureSpotPrices() {
+const instancesAzure = ['Standard_B4ms', 'Standard_F4s_v2'];
+const regionsAzure = ['eastus', 'westeurope'];
+
+async function fetchAzureSpotPrices(instanceType, region) {
     try {
         const params = {
-            "$filter": "serviceName eq 'Virtual Machines' and armSkuName eq 'Standard_NP20s' and armRegionName eq 'southcentralus' and contains(meterName, 'Spot')",
-            "$top": 10000,
+            "$filter": `serviceName eq 'Virtual Machines' and armSkuName eq '${instanceType}' and armRegionName eq '${region}'`,
+            "$top": 10,
             "api-version": "2023-01-01-preview"
         };
 
@@ -21,7 +24,7 @@ async function fetchAzureSpotPrices() {
                     ProductDescription: item.serviceName
                 };
             });
-            console.log('Standardized Data:', standardizedData);
+            console.log(`Standardized Data for ${instanceType} in ${region}:`, standardizedData);
         } else {
             console.error(`Request failed with status ${response.status}`);
         }
@@ -30,4 +33,8 @@ async function fetchAzureSpotPrices() {
     }
 }
 
-fetchAzureSpotPrices();
+instancesAzure.forEach(instanceType => {
+    regionsAzure.forEach(region => {
+        fetchAzureSpotPrices(instanceType, region);
+    });
+});
