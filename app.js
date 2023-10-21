@@ -1,6 +1,23 @@
 const express = require('express');
-const apiRoutes = require('./routes/apiRoutes');
+const db = require('./models'); 
+
 const app = express();
+
 app.use(express.json());
-app.use('/api', apiRoutes);
-module.exports = app;
+
+app.get('/providers', async (req, res) => {
+  const providers = await db.CloudProvider.findAll();
+  res.json(providers);
+});
+
+db.sequelize.sync()
+  .then(() => {
+    const port = 3000;
+    app.listen(port, () => {
+      console.log(`Server running on http://localhost:${port}`);
+      console.log('Database synced');
+    });
+  })
+  .catch((error) => {
+    console.log('Error syncing database', error);
+  });
