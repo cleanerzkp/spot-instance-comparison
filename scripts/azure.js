@@ -8,14 +8,14 @@ async function fetchAzureSpotPrices(instanceType, region) {
     try {
         const params = {
             "$filter": `serviceName eq 'Virtual Machines' and armSkuName eq '${instanceType}' and armRegionName eq '${region}'`,
-            "$top": 10,
+            "$top": 100,  // Set to a high number to ensure we fetch enough data to filter client-side
             "api-version": "2023-01-01-preview"
         };
 
         const response = await axios.get('https://prices.azure.com/api/retail/prices', { params });
 
         if (response.status === 200) {
-            const standardizedData = response.data.Items.map(item => {
+            let standardizedData = response.data.Items.map(item => {
                 return {
                     SpotPrice: item.retailPrice,
                     Timestamp: item.effectiveStartDate,
@@ -24,6 +24,16 @@ async function fetchAzureSpotPrices(instanceType, region) {
                     ProductDescription: item.serviceName
                 };
             });
+
+            // Filter for only the prices from October 2023
+            standardizedData = standardizedData.filter(item => {
+                const date = moment(item.Timestamp);
+                return date.isBetween('2023-10-01', '2023-10-31', undefined, '[]');
+            });
+
+            // Limit to 10 results
+            standardizedData = standardizedData.slice(0, 10);
+
             console.log(`Standardized Data for ${instanceType} in ${region}:`, standardizedData);
         } else {
             console.error(`Request failed with status ${response.status}`);
