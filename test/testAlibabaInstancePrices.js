@@ -4,18 +4,29 @@ const ALIBABA_ACCESS_KEY_SECRET = process.env.ALIBABA_ACCESS_KEY_SECRET;
 
 const { RPCClient } = require('@alicloud/pop-core');
 
-const regions = ['us-west-1', 'asia-southeast1'];
-const instanceTypes = ['ecs.g6a.xlarge', 'ecs.g6.xlarge'];  
+const regions = ['us-west-1', 'eu-central-1'];
+const instanceTypes = ['ecs.g5.xlarge', 'ecs.g6.xlarge'];  
+
+const regionEndpoints = {
+    'us-west-1': 'https://ecs.us-west-1.aliyuncs.com',
+    'eu-central-1': 'https://ecs.eu-central-1.aliyuncs.com'
+};
 
 async function checkAlibabaSpotPriceHistory() {
-    const client = new RPCClient({
-        accessKeyId: ALIBABA_ACCESS_KEY_ID,
-        accessKeySecret: ALIBABA_ACCESS_KEY_SECRET,
-        endpoint: 'https://ecs.aliyuncs.com',
-        apiVersion: '2014-05-26'
-    });
-
     for (const region of regions) {
+        const endpoint = regionEndpoints[region];
+        if (!endpoint) {
+            console.error(`No endpoint specified for region ${region}`);
+            continue;  // Skip to next region if endpoint is not specified
+        }
+
+        const client = new RPCClient({
+            accessKeyId: ALIBABA_ACCESS_KEY_ID,
+            accessKeySecret: ALIBABA_ACCESS_KEY_SECRET,
+            endpoint: endpoint,
+            apiVersion: '2014-05-26'
+        });
+
         for (const instanceType of instanceTypes) {
             try {
                 const params = {
