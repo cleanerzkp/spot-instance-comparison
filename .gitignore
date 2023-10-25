@@ -14,3 +14,6 @@ Thumbs.db
 
 # Database files (if stored locally):
 database/*.sqlite
+
+#
+/GetSpot-Service-Account.json
