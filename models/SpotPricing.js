@@ -9,11 +9,15 @@ module.exports = (sequelize) => {
       primaryKey: true,
       autoIncrement: true
     },
-    instanceID: DataTypes.INTEGER,
-    regionID: DataTypes.INTEGER,
+    name: DataTypes.STRING,
+    regionCategory: DataTypes.STRING,
     date: DataTypes.DATE,
     price: DataTypes.DECIMAL(10, 4),
-    timestamp: DataTypes.DATE
+    timestamp: DataTypes.DATE,
+    createdAt: DataTypes.DATE,
+    updatedAt: DataTypes.DATE,
+    grouping: DataTypes.STRING,
+    providerID: DataTypes.STRING
   }, {
     sequelize,
     modelName: 'SpotPricing'

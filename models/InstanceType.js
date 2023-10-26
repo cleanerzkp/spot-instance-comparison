@@ -13,10 +13,13 @@ module.exports = (sequelize) => {
       primaryKey: true,
       autoIncrement: true
     },
-    providerID: DataTypes.INTEGER,
+    providerID: DataTypes.STRING,
     name: DataTypes.STRING,
     vCPU: DataTypes.INTEGER,
-    RAM_GB: DataTypes.INTEGER
+    RAM_GB: DataTypes.INTEGER,
+    category: DataTypes.STRING,
+    comparisonGroup: DataTypes.STRING,
+    grouping: DataTypes.STRING
   }, {
     sequelize,
     modelName: 'InstanceType'

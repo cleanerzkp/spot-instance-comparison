@@ -8,30 +8,29 @@ const { SpotPricing, sequelize } = require('../models');
 
 const regions = ['us-west-1', 'eu-central-1'];
 const instanceTypes = ['ecs.g5.xlarge', 'ecs.g6.xlarge'];
-
 const regionEndpoints = {
   'us-west-1': 'https://ecs.us-west-1.aliyuncs.com',
   'eu-central-1': 'https://ecs.eu-central-1.aliyuncs.com'
 };
 
-async function fetchInstanceGrouping(instanceType) {
-  const query = `SELECT "grouping" FROM public."InstanceTypes" WHERE "name" = :instanceType`;
-  const [results] = await sequelize.query(query, {
-    replacements: { instanceType },
+// Fetch all instance groupings at once and keep it in a map
+const instanceGroupingMap = {};
+
+async function fetchAllInstanceGroupings() {
+  const query = `SELECT "name", "grouping" FROM public."InstanceTypes"`;
+  const results = await sequelize.query(query, {
     type: Sequelize.QueryTypes.SELECT,
   });
-  return results ? results.grouping : null;
+  for (const res of results) {
+    instanceGroupingMap[res.name] = res.grouping;
+  }
 }
 
 async function fetchAlibabaSpotPrices() {
   let allData = [];
-
   for (const region of regions) {
     const endpoint = regionEndpoints[region];
-    if (!endpoint) {
-      console.error(`No endpoint specified for region ${region}`);
-      continue;
-    }
+    if (!endpoint) continue;
 
     const client = new RPCClient({
       accessKeyId: ALIBABA_ACCESS_KEY_ID,
@@ -55,24 +54,22 @@ async function fetchAlibabaSpotPrices() {
       }
     }
   }
-
   return allData;
 }
 
 const mapAlibabaDataToDbFormat = async (data) => {
   const promises = data.map(async (spot) => {
-    const grouping = await fetchInstanceGrouping(spot.InstanceType);
+    const grouping = instanceGroupingMap[spot.InstanceType] || "Unknown";
     return {
       name: spot.InstanceType,
       regionCategory: `Alibaba-${spot.ZoneId}`,
       date: new Date(spot.Timestamp).toISOString(),
       price: parseFloat(spot.SpotPrice),
       timestamp: new Date().toISOString(),
-      providerID: "Alibaba",
-      grouping: grouping || "Unknown"
+      providerID: "ALB",
+      grouping: grouping
     };
   });
-
   return Promise.all(promises);
 };
 
@@ -83,6 +80,7 @@ const saveToDatabase = async (mappedData) => {
 };
 
 const runAlibabaScript = async () => {
+  await fetchAllInstanceGroupings();  // Fetch all groupings once
   const alibabaData = await fetchAlibabaSpotPrices();
   const mappedData = await mapAlibabaDataToDbFormat(alibabaData);
   await saveToDatabase(mappedData);

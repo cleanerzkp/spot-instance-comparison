@@ -5,13 +5,14 @@ module.exports = (sequelize) => {
 
   CloudProvider.init({
     providerID: {
-      type: DataTypes.INTEGER,
-      primaryKey: true,
-      autoIncrement: true
+      type: DataTypes.STRING,
+      primaryKey: true
     },
     name: DataTypes.STRING,
     API_endpoint: DataTypes.STRING,
-    data_frequency: DataTypes.STRING
+    data_frequency: DataTypes.STRING,
+    createdAt: DataTypes.DATE,
+    updatedAt: DataTypes.DATE
   }, {
     sequelize,
     modelName: 'CloudProvider'

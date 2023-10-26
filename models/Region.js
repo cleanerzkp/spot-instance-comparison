@@ -9,7 +9,10 @@ module.exports = (sequelize) => {
       primaryKey: true,
       autoIncrement: true
     },
-    name: DataTypes.STRING
+    name: DataTypes.STRING,
+    standardizedRegion: DataTypes.STRING,
+    providerID: DataTypes.STRING,
+    regionCategory: DataTypes.STRING
   }, {
     sequelize,
     modelName: 'Region'

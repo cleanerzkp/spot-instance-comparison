@@ -15,3 +15,7 @@ const runAllScripts = async () => {
 runAllScripts()
   .then(() => console.log('All data saved successfully'))
   .catch(err => console.error('Error saving data:', err));
+// pobierz dane
+// zmappuj na obietk bazodanowy
+// nadaj grupy & region 
+// zapisz do basy insdert -> 
