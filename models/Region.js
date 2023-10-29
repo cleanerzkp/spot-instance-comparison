@@ -15,7 +15,8 @@ module.exports = (sequelize) => {
     regionCategory: DataTypes.STRING
   }, {
     sequelize,
-    modelName: 'Region'
+    modelName: 'Region',
+    timestamps: false
   });
 
   return Region;

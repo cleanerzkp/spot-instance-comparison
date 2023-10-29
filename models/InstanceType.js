@@ -22,7 +22,8 @@ module.exports = (sequelize) => {
     grouping: DataTypes.STRING
   }, {
     sequelize,
-    modelName: 'InstanceType'
+    modelName: 'InstanceType',
+    timestamps: false
   });
 
   return InstanceType;
