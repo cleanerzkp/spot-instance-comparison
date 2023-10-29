@@ -20,7 +20,13 @@ module.exports = (sequelize) => {
     grouping: DataTypes.STRING,
   }, {
     sequelize,
-    modelName: 'SpotPricing'
+    modelName: 'SpotPricing',
+    uniqueKeys: {
+      unique_tag: {
+        customIndex: true,
+        fields: ['name', 'regionCategory', 'date']
+      }
+    }
   });
 
   return SpotPricing;

@@ -1,17 +1,15 @@
 require('dotenv').config({ path: '../.env' });
 
 if (!process.env.AWS_ACCESS_KEY_ID) {
-    process.env.AWS_ACCESS_KEY_ID = process.env.AWS_ACCESS_KEY;
+  process.env.AWS_ACCESS_KEY_ID = process.env.AWS_ACCESS_KEY;
 }
 if (!process.env.AWS_SECRET_ACCESS_KEY) {
-    process.env.AWS_SECRET_ACCESS_KEY = process.env.AWS_SECRET_KEY;
+  process.env.AWS_SECRET_ACCESS_KEY = process.env.AWS_SECRET_KEY;
 }
 
-const db = require('../models'); // Update this line
+const db = require('../models'); 
 const SpotPricing = db.SpotPricing;
 const { exec } = require('child_process');
-const cron = require('node-cron');
-
 
 // Function to fetch AWS spot prices
 async function fetchAWSSpotPrices(instanceType, region) {
@@ -75,7 +73,7 @@ async function calculateDailyAverage(instanceType, region) {
   try {
     const result = await fetchAWSSpotPrices(instanceType, region);
     const spotPriceHistory = result.SpotPriceHistory;
-    
+
     if (spotPriceHistory.length === 0) {
       console.log(`No prices available for ${instanceType} in ${region}`);
       return;
