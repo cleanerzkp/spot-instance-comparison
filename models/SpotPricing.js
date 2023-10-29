@@ -16,8 +16,8 @@ module.exports = (sequelize) => {
     timestamp: DataTypes.DATE,
     createdAt: DataTypes.DATE,
     updatedAt: DataTypes.DATE,
+    providerID: DataTypes.STRING,
     grouping: DataTypes.STRING,
-    providerID: DataTypes.STRING
   }, {
     sequelize,
     modelName: 'SpotPricing'
