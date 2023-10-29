@@ -1,7 +1,17 @@
-const db = require('../testDbConnection');
+require('dotenv').config({ path: '../.env' });
+
+if (!process.env.AWS_ACCESS_KEY_ID) {
+    process.env.AWS_ACCESS_KEY_ID = process.env.AWS_ACCESS_KEY;
+}
+if (!process.env.AWS_SECRET_ACCESS_KEY) {
+    process.env.AWS_SECRET_ACCESS_KEY = process.env.AWS_SECRET_KEY;
+}
+
+const db = require('../models'); // Update this line
 const SpotPricing = db.SpotPricing;
 const { exec } = require('child_process');
 const cron = require('node-cron');
+
 
 // Function to fetch AWS spot prices
 async function fetchAWSSpotPrices(instanceType, region) {
@@ -96,14 +106,12 @@ async function calculateDailyAverage(instanceType, region) {
   }
 }
 
-// Scheduled task to run every day at 12:00 AM
-cron.schedule('0 0 * * *', function() {
-  const instances = ['t4g.xlarge', 'c6a.xlarge'];
-  const regions = ['us-east-1', 'eu-west-1'];
+// For immediate testing
+const instances = ['t4g.xlarge', 'c6a.xlarge'];
+const regions = ['us-east-1', 'eu-west-1'];
 
-  instances.forEach(instanceType => {
-    regions.forEach(region => {
-      calculateDailyAverage(instanceType, region);
-    });
+instances.forEach(instanceType => {
+  regions.forEach(region => {
+    calculateDailyAverage(instanceType, region);
   });
 });
