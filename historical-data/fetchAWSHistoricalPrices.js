@@ -8,39 +8,56 @@ const db = require('../models');
 async function fetchAWSSpotPrices(instanceType, region) {
     return new Promise((resolve, reject) => {
         exec(`aws ec2 describe-spot-price-history --instance-types ${instanceType} --region ${region} --max-items 1000 --product-descriptions "Linux/UNIX" --output json`, (error, stdout, stderr) => {
-            if (error) {
-                console.error(`Error: ${error.message}`);
-                return reject(error);
+            if (error || stderr) {
+                return reject(new Error(error?.message || stderr));
             }
-            if (stderr) {
-                console.error(`Stderr: ${stderr}`);
-                return reject(new Error(stderr));
-            }
-
             const result = JSON.parse(stdout);
             return resolve(result);
         });
     });
 }
 
-async function saveSpotPriceToDB(region, instanceType, date, price, timestamp) {
+async function saveOrUpdateSpotPrice(region, instanceType, date, price, timestamp, grouping, providerID) {
     try {
-        await db.SpotPricing.create({
-            region,
-            instance_type: instanceType,
+        const existingRecord = await db.SpotPricing.findOne({
+            where: {
+                region,
+                instance_type: instanceType,
+                date
+            }
+        });
+
+        const dataToInsertOrUpdate = {
+            name: `${instanceType}-general-purpose`,
+            regionCategory: `AWS-${region}`,
             date,
             price,
-            timestamp
-        });
+            timestamp,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            grouping,
+            providerID
+        };
+
+        if (existingRecord) {
+            await existingRecord.update(dataToInsertOrUpdate);
+        } else {
+            await db.SpotPricing.create(dataToInsertOrUpdate);
+        }
     } catch (err) {
-        console.error('Error inserting spot price to DB:', err.message);
+        console.error('Error inserting or updating spot price to DB:', err.message);
     }
 }
 
-async function fetchAndSaveAWSSpotPrices(region, instanceType) {
+async function fetchAndSaveAWSSpotPrices(region, instanceType, grouping, providerID) {
     try {
         const result = await fetchAWSSpotPrices(instanceType, region);
         const spotPriceHistory = result.SpotPriceHistory;
+
+        if (!spotPriceHistory || spotPriceHistory.length === 0) {
+            console.log(`No data available for ${instanceType} in ${region}.`);
+            return;
+        }
 
         const pricesByDay = {};
         spotPriceHistory.forEach(spotPrice => {
@@ -55,20 +72,41 @@ async function fetchAndSaveAWSSpotPrices(region, instanceType) {
             const prices = pricesByDay[date];
             const sum = prices.reduce((acc, price) => acc + price, 0);
             const average = sum / prices.length;
-            await saveSpotPriceToDB(region, instanceType, date, average, new Date(date));
+            const timestamp = new Date().toISOString();
+            await saveOrUpdateSpotPrice(region, instanceType, date, average, timestamp, grouping, providerID);
         }
 
-        console.log(`Saved daily average spot prices for ${instanceType} in ${region} to the database.`);
+        console.log(`Saved or updated daily average spot prices for ${instanceType} in ${region} to the database.`);
     } catch (error) {
-        console.error('Error fetching and saving spot prices:', error.message);
+        console.log(`Error or no data for ${instanceType} in ${region}: ${error.message}`);
     }
 }
 
-const instanceMap = ['t4g.xlarge', 'c6a.xlarge'];
-const regionMap = ['us-east-1', 'eu-west-1'];
+async function main() {
+    try {
+        const { regions, instances } = await fetchRegionsAndInstanceTypes();
 
-for (const instanceType of instanceMap) {
-    for (const region of regionMap) {
-        fetchAndSaveAWSSpotPrices(region, instanceType);
+        const grouping = "YourGrouping";  // Replace with actual grouping
+        const providerID = "AWS";  // Replace with actual providerID
+
+        for (const instanceType of instances) {
+            for (const region of regions) {
+                await fetchAndSaveAWSSpotPrices(region, instanceType, grouping, providerID);
+            }
+        }
+    } catch (error) {
+        console.error(`Global error: ${error.message}`);
     }
 }
+
+async function fetchRegionsAndInstanceTypes() {
+    const awsRegions = await db.Region.findAll({ where: { providerID: 'AWS' } });
+    const awsInstanceTypes = await db.InstanceType.findAll({ where: { providerID: 'AWS' } });
+
+    return {
+        regions: awsRegions.map(r => r.name),
+        instances: awsInstanceTypes.map(i => i.name)
+    };
+}
+
+main();
