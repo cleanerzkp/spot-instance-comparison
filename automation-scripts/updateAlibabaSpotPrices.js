@@ -7,9 +7,13 @@ const { RPCClient } = require('@alicloud/pop-core');
 const { SpotPricing, InstanceType, Region, sequelize } = require('../models');
 
 const regionEndpoints = {
-  'us-west-1': 'https://ecs.us-west-1.aliyuncs.com',
-  'eu-central-1': 'https://ecs.eu-central-1.aliyuncs.com'
-};
+    'us-west-1': 'https://ecs.us-west-1.aliyuncs.com',
+    'eu-central-1': 'https://ecs.eu-central-1.aliyuncs.com',
+    'us-east-1': 'https://ecs.us-east-1.aliyuncs.com',
+    'ap-south-1': 'https://ecs.ap-south-1.aliyuncs.com',  
+    'me-east-1': 'https://ecs.me-east-1.aliyuncs.com'  
+  };
+  
 
 async function fetchData() {
   const instanceTypes = await InstanceType.findAll({ where: { providerID: 'ALB' } });
