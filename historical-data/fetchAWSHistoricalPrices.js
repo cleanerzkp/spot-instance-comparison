@@ -42,7 +42,7 @@ async function saveOrUpdateSpotPrice(region, instanceType, date, price, grouping
   
     const dataToInsertOrUpdate = {
       name: `${instanceType}-${grouping}`,
-      regionCategory: `AWS-${region}`,
+      regionCategory: `AWS-${name}`,
       date,
       price,
       createdAt: new Date(),
