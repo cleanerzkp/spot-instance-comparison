@@ -2,14 +2,25 @@ require('dotenv').config({ path: '../.env' });
 process.env.AWS_ACCESS_KEY_ID = process.env.AWS_ACCESS_KEY;
 process.env.AWS_SECRET_ACCESS_KEY = process.env.AWS_SECRET_KEY;
 
-const db = require('../models'); 
+const db = require('../models');
 const SpotPricing = db.SpotPricing;
+const InstanceType = db.InstanceType;
+const Region = db.Region;
 const { exec } = require('child_process');
 
-// Function to fetch AWS spot prices
+async function fetchData() {
+  const instanceTypes = await InstanceType.findAll({ where: { providerID: 'AWS' } });
+  const regions = await Region.findAll({ where: { providerID: 'AWS' } });
+
+  return {
+    instanceTypes: instanceTypes.map(it => ({ name: it.name, category: it.category })),
+    regions: regions.map(r => r.name)
+  };
+}
+
 async function fetchAWSSpotPrices(instanceType, region) {
   return new Promise((resolve, reject) => {
-    exec(`aws ec2 describe-spot-price-history --instance-types ${instanceType} --region ${region} --max-items 1000 --product-descriptions "Linux/UNIX" --output json`, (error, stdout, stderr) => {
+    exec(`aws ec2 describe-spot-price-history --instance-types ${instanceType.name} --region ${region} --max-items 1000 --product-descriptions "Linux/UNIX" --output json`, (error, stdout, stderr) => {
       if (error) {
         console.error(`Error: ${error.message}`);
         return reject(error);
@@ -24,17 +35,11 @@ async function fetchAWSSpotPrices(instanceType, region) {
   });
 }
 
-// Function to insert data into the database
-async function insertIntoDB(dailyAverages, instanceType, region) {
-  const groupingMap = {
-    't4g.xlarge': 'GP1',
-    'c6a.xlarge': 'CO1'
-  };
-
+async function insertIntoDB(dailyAverages, instanceTypeObj, region) {
   for (const date in dailyAverages) {
     const existingRecord = await SpotPricing.findOne({
       where: {
-        name: `${instanceType}-general-purpose`,
+        name: `${instanceTypeObj.name}-${instanceTypeObj.category}`,
         date: new Date(date),
         regionCategory: `AWS-${region}`
       }
@@ -51,26 +56,25 @@ async function insertIntoDB(dailyAverages, instanceType, region) {
       await existingRecord.update({ price: price });
     } else {
       await SpotPricing.create({
-        name: `${instanceType}-general-purpose`,
+        name: `${instanceTypeObj.name}-${instanceTypeObj.category}`,
         regionCategory: `AWS-${region}`,
         date: new Date(date),
         price: price,
         timestamp: new Date(),
-        grouping: groupingMap[instanceType],
+        grouping: instanceTypeObj.grouping,
         providerID: 'AWS'
       });
     }
   }
 }
 
-// Function to calculate daily average of spot prices
-async function calculateDailyAverage(instanceType, region) {
+async function calculateDailyAverage(instanceTypeObj, region) {
   try {
-    const result = await fetchAWSSpotPrices(instanceType, region);
+    const result = await fetchAWSSpotPrices(instanceTypeObj, region);
     const spotPriceHistory = result.SpotPriceHistory;
 
     if (spotPriceHistory.length === 0) {
-      console.log(`No prices available for ${instanceType} in ${region}`);
+      console.log(`No prices available for ${instanceTypeObj.name} in ${region}`);
       return;
     }
 
@@ -92,19 +96,19 @@ async function calculateDailyAverage(instanceType, region) {
       dailyAverages[date] = average;
     }
 
-    await insertIntoDB(dailyAverages, instanceType, region);
-
+    await insertIntoDB(dailyAverages, instanceTypeObj, region);
   } catch (error) {
     console.error('Error calculating daily average:', error.message);
   }
 }
 
-// For immediate testing
-const instances = ['t4g.xlarge', 'c6a.xlarge'];
-const regions = ['us-east-1', 'eu-west-1'];
-
-instances.forEach(instanceType => {
-  regions.forEach(region => {
-    calculateDailyAverage(instanceType, region);
+async function main() {
+  const { instanceTypes, regions } = await fetchData();
+  instanceTypes.forEach(instanceTypeObj => {
+    regions.forEach(region => {
+      calculateDailyAverage(instanceTypeObj, region);
+    });
   });
-});
+}
+
+main();
