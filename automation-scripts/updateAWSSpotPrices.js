@@ -13,9 +13,9 @@ async function fetchData() {
   const regions = await Region.findAll({ where: { providerID: 'AWS' } });
 
   return {
-    instanceTypes: instanceTypes.map(it => ({ name: it.name, category: it.category })),
+    instanceTypes: instanceTypes.map(it => ({ name: it.name, category: it.category, grouping: it.grouping })),
     regions: regions.map(r => r.name)
-  };
+  };  
 }
 
 async function fetchAWSSpotPrices(instanceType, region) {
