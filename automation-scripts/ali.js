@@ -8,10 +8,7 @@ const { SpotPricing, InstanceType, Region, sequelize } = require('../models');
 
 const regionEndpoints = {
   'us-west-1': 'https://ecs.us-west-1.aliyuncs.com',
-  'eu-central-1': 'https://ecs.eu-central-1.aliyuncs.com',
-  'us-east-1': 'https://ecs.us-east-1.aliyuncs.com',
-  'ap-south-1': 'https://ecs.ap-south-1.aliyuncs.com',
-  'me-east-1': 'https://ecs.me-east-1.aliyuncs.com'
+  'eu-central-1': 'https://ecs.eu-central-1.aliyuncs.com'
 };
 
 async function fetchData() {
@@ -41,7 +38,6 @@ async function fetchAlibabaSpotPrices(instanceType, region) {
   };
 
   const result = await client.request('DescribeSpotPriceHistory', params);
-  console.log("Raw API Response:", result);  // Debugging line 1
   return result.SpotPrices.SpotPriceType;
 }
 
@@ -63,10 +59,8 @@ async function insertIntoDB(dailyAverages, instanceType, region) {
     const price = dailyAverages[date];
 
     if (existingRecord && date === today) {
-      console.log(`Updating ${instanceType.name} for date ${date}`);  // Debugging line 3
       await existingRecord.update({ price: price });
     } else {
-      console.log(`Inserting ${instanceType.name} for date ${date}`);  // Debugging line 3
       await SpotPricing.create({
         name: instanceType.name,
         regionCategory: `Alibaba-${region}`,
@@ -81,7 +75,6 @@ async function insertIntoDB(dailyAverages, instanceType, region) {
 }
 
 async function calculateDailyAverage(instanceType, region) {
-  console.log("Checking for:", instanceType, region);  // Debugging line 2
   const spotPriceHistory = await fetchAlibabaSpotPrices(instanceType, region);
   if (spotPriceHistory.length === 0) {
     console.log(`No prices available for ${instanceType.name} in ${region}`);
