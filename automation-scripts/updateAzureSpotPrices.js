@@ -17,10 +17,10 @@ async function fetchData() {
 async function fetchAzurePrices(instanceType, region, nextPageUrl) {
   const apiUrl = 'https://prices.azure.com/api/retail/prices';
   const params = {
-    '$filter': `armRegionName eq '${region}' and armSkuName eq 'Standard_${instanceType}'`,
+    '$filter': `armRegionName eq '${region}' and armSkuName eq 'Standard_${instanceType}' and effectiveStartDate ge 2023-10-01 and effectiveStartDate le 2023-10-31`,
     '$top': 100
   };
-
+  
   try {
     let response;
     if (nextPageUrl) {

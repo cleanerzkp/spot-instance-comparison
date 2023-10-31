@@ -1,115 +1,39 @@
 require('dotenv').config({ path: '../.env' });
+const { RPCClient } = require('@alicloud/pop-core');
+
 const ALIBABA_ACCESS_KEY_ID = process.env.ALIBABA_ACCESS_KEY_ID;
 const ALIBABA_ACCESS_KEY_SECRET = process.env.ALIBABA_ACCESS_KEY_SECRET;
+const REGION_ID = 'us-east-1';  // Update this if necessary
+const INSTANCE_TYPE = 'ecs.g5.xlarge';  // Update this if necessary
 
-const { Sequelize } = require('sequelize');
-const { RPCClient } = require('@alicloud/pop-core');
-const { SpotPricing, InstanceType, Region, sequelize } = require('../models');
-
-const regionEndpoints = {
-  'us-west-1': 'https://ecs.us-west-1.aliyuncs.com',
-  'eu-central-1': 'https://ecs.eu-central-1.aliyuncs.com'
-};
-
-async function fetchData() {
-  const instanceTypes = await InstanceType.findAll({ where: { providerID: 'ALB' } });
-  const regions = await Region.findAll({ where: { providerID: 'ALB' } });
-
-  return {
-    instanceTypes: instanceTypes.map(it => ({ name: it.name, category: it.category, grouping: it.grouping })),
-    regions: regions.map(r => r.name)
-  };
-}
-
-async function fetchAlibabaSpotPrices(instanceType, region) {
-  const endpoint = regionEndpoints[region];
+async function fetchAlibabaSpotPrices() {
   const client = new RPCClient({
     accessKeyId: ALIBABA_ACCESS_KEY_ID,
     accessKeySecret: ALIBABA_ACCESS_KEY_SECRET,
-    endpoint: endpoint,
-    apiVersion: '2014-05-26'
+    endpoint: `https://ecs.${REGION_ID}.aliyuncs.com`,
+    apiVersion: '2014-05-26',
   });
 
-  const params = {
-    RegionId: region,
-    NetworkType: 'vpc',
-    InstanceType: instanceType.name,
-    MaxResults: 1000
-  };
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-  const result = await client.request('DescribeSpotPriceHistory', params);
-  return result.SpotPrices.SpotPriceType;
-}
+  // Format dates to 'YYYY-MM-DDTHH:mm:ss' (ISO 8601 without milliseconds or timezone offset)
+  const formatDate = date => date.toISOString().split('.')[0] + 'Z';
 
-async function insertIntoDB(dailyAverages, instanceType, region) {
-  for (const date in dailyAverages) {
-    const existingRecord = await SpotPricing.findOne({
-      where: {
-        name: instanceType.name,
-        date: new Date(date),
-        regionCategory: `Alibaba-${region}`
-      }
-    });
-
-    const today = new Date().toISOString().split('T')[0];
-    if (existingRecord && date !== today) {
-      continue;
-    }
-
-    const price = dailyAverages[date];
-
-    if (existingRecord && date === today) {
-      await existingRecord.update({ price: price });
-    } else {
-      await SpotPricing.create({
-        name: instanceType.name,
-        regionCategory: `Alibaba-${region}`,
-        date: new Date(date),
-        price: price,
-        timestamp: new Date(),
-        grouping: instanceType.grouping,
-        providerID: 'ALB'
-      });
-    }
+  try {
+    const params = {
+      RegionId: REGION_ID,
+      NetworkType: 'vpc',
+      InstanceType: INSTANCE_TYPE,
+      StartTime: formatDate(sevenDaysAgo),
+      EndTime: formatDate(new Date()),
+      MaxResults: 50,  // Increase this value if necessary
+    };
+    const result = await client.request('DescribeSpotPriceHistory', params);
+    console.log(JSON.stringify(result, null, 2));  // Log the results in JSON format
+  } catch (error) {
+    console.error(`Error fetching Alibaba Spot Prices for ${REGION_ID} ${INSTANCE_TYPE}:`, error.message);
   }
 }
 
-async function calculateDailyAverage(instanceType, region) {
-  const spotPriceHistory = await fetchAlibabaSpotPrices(instanceType, region);
-  if (spotPriceHistory.length === 0) {
-    console.log(`No prices available for ${instanceType.name} in ${region}`);
-    return;
-  }
-
-  const pricesByDay = {};
-  const dailyAverages = {};
-
-  spotPriceHistory.forEach(spotPrice => {
-    const date = new Date(spotPrice.Timestamp).toISOString().split('T')[0];
-    if (!pricesByDay[date]) {
-      pricesByDay[date] = [];
-    }
-    pricesByDay[date].push(parseFloat(spotPrice.SpotPrice));
-  });
-
-  for (const date in pricesByDay) {
-    const prices = pricesByDay[date];
-    const sum = prices.reduce((acc, price) => acc + price, 0);
-    const average = sum / prices.length;
-    dailyAverages[date] = average;
-  }
-
-  await insertIntoDB(dailyAverages, instanceType, region);
-}
-
-async function runAlibabaScript() {
-  const { instanceTypes, regions } = await fetchData();
-  for (const instanceType of instanceTypes) {
-    for (const region of regions) {
-      await calculateDailyAverage(instanceType, region);
-    }
-  }
-  console.log('Alibaba data saved successfully');
-}
-
-runAlibabaScript();
+fetchAlibabaSpotPrices();

@@ -1,18 +1,13 @@
 require('dotenv').config({ path: '../.env' });
-const ALIBABA_ACCESS_KEY_ID = process.env.ALIBABA_ACCESS_KEY_ID;
-const ALIBABA_ACCESS_KEY_SECRET = process.env.ALIBABA_ACCESS_KEY_SECRET;
-
 const { Sequelize, DataTypes } = require('sequelize');
 const { RPCClient } = require('@alicloud/pop-core');
-const { SpotPricing, sequelize, InstanceType, Region } = require('../models');
+const { SpotPricing, sequelize, InstanceType, Region, CloudProviders } = require('../models');
 
-const regionEndpoints = {
-    'us-east-1': 'https://ecs.us-east-1.aliyuncs.com',
-    'us-west-1': 'https://ecs.us-west-1.aliyuncs.com',
-    'eu-central-1': 'https://ecs.eu-central-1.aliyuncs.com',
-    'me-east-1': 'https://ecs.me-east-1.aliyuncs.com',
-    'ap-south-1': 'https://ecs.ap-south-1.aliyuncs.com'
-};
+async function getEndpoint(providerID) {
+    const providerData = await CloudProviders.findOne({ where: { providerID: providerID } });
+    return providerData ? providerData.API_endpoint : null;
+  }
+  
 
 async function fetchData() {
   const instanceTypes = await InstanceType.findAll({ where: { providerID: 'ALB' } });
@@ -20,36 +15,38 @@ async function fetchData() {
   return {
     instanceTypes: instanceTypes.map(it => ({ name: it.name, category: it.category, grouping: it.grouping })),
     regions: regions.map(r => r.name)
-  };  
+  };
 }
 
 async function fetchAlibabaSpotPrices(instanceType, region) {
-  const endpoint = regionEndpoints[region];
+  const endpoint = await getEndpoint('ALB');
   if (!endpoint) {
-    console.error(`No endpoint specified for region ${region}`);
+    console.error('No endpoint specified for Alibaba Cloud');
     return [];
   }
 
   const client = new RPCClient({
-    accessKeyId: ALIBABA_ACCESS_KEY_ID,
-    accessKeySecret: ALIBABA_ACCESS_KEY_SECRET,
-    endpoint: endpoint,
+    accessKeyId: process.env.ALIBABA_ACCESS_KEY_ID,
+    accessKeySecret: process.env.ALIBABA_ACCESS_KEY_SECRET,
+    endpoint: `${endpoint}/${region}`,
     apiVersion: '2014-05-26'
   });
-
-  try {
-    const params = {
-      RegionId: region,
-      NetworkType: 'vpc',
-      InstanceType: instanceType.name,
-      MaxResults: 5,
-    };
-    const result = await client.request('DescribeSpotPriceHistory', params);
-    return result.SpotPrices.SpotPriceType;
-  } catch (error) {
-    console.error(`Error fetching Alibaba Spot Prices for ${region} ${instanceType.name}:`, error.message);
+    try {
+      const params = {
+        RegionId: region,
+        NetworkType: 'vpc',
+        InstanceType: instanceType.name,
+        MaxResults: 5,
+      };
+      const result = await client.request('DescribeSpotPriceHistory', params);
+      console.log('API Response:', JSON.stringify(result, null, 2));  // Log the full API response
+      return result.SpotPrices.SpotPriceType || [];
+    } catch (error) {
+      console.error(`Error fetching Alibaba Spot Prices for ${region} ${instanceType.name}:`, error.message);
+      console.error('Error Details:', error);  // Log the full error object
+      return [];
+    }
   }
-}
 
 
 async function insertIntoDB(dailyAverages, instanceTypeObj, region) {
