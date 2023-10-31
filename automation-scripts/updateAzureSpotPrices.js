@@ -17,7 +17,7 @@ async function fetchData() {
 async function fetchAzurePrices(instanceType, region, nextPageUrl) {
   const apiUrl = 'https://prices.azure.com/api/retail/prices';
   const params = {
-    '$filter': `armRegionName eq '${region}' and armSkuName eq 'Standard_${instanceType}'`,  // Adjusted the armSkuName value
+    '$filter': `armRegionName eq '${region}' and armSkuName eq 'Standard_${instanceType}'`,
     '$top': 100
   };
 
@@ -44,6 +44,14 @@ async function fetchAzurePrices(instanceType, region, nextPageUrl) {
 async function insertIntoDB(prices, instanceTypeObj, region) {
   for (const price of prices) {
     const date = new Date(price.effectiveStartDate).toISOString().split('T')[0];
+    const priceValue = parseFloat(price.retailPrice);
+    
+    // Ignoring outlier prices
+    if (priceValue > 10) {
+      console.log(`Ignoring outlier price: ${priceValue} for ${instanceTypeObj.name} in ${region}`);
+      continue;
+    }
+
     const existingRecord = await SpotPricing.findOne({
       where: {
         name: `${instanceTypeObj.name}-${instanceTypeObj.category}`,
@@ -52,10 +60,11 @@ async function insertIntoDB(prices, instanceTypeObj, region) {
       }
     });
 
-    const priceValue = parseFloat(price.retailPrice);
-
     if (existingRecord) {
-      await existingRecord.update({ price: priceValue });
+      // Updating with new price value if it's different
+      if (existingRecord.price !== priceValue) {
+        await existingRecord.update({ price: priceValue });
+      }
     } else {
       await SpotPricing.create({
         name: `${instanceTypeObj.name}-${instanceTypeObj.category}`,
@@ -67,22 +76,31 @@ async function insertIntoDB(prices, instanceTypeObj, region) {
         providerID: 'AZR'
       });
     }
-
-    
   }
 }
+
 async function main() {
-    const { instanceTypes, regions } = await fetchData();
-    for (const instanceTypeObj of instanceTypes) {
-      for (const region of regions) {
+  const { instanceTypes, regions } = await fetchData();
+  const promises = [];
+
+  for (const instanceTypeObj of instanceTypes) {
+    for (const region of regions) {
+      promises.push((async () => {
         const prices = await fetchAzurePrices(instanceTypeObj.name, region);
-        if (prices.length > 0) {
-          await insertIntoDB(prices, instanceTypeObj, region);
+        const filteredPrices = prices.filter(price => {
+          const date = new Date(price.effectiveStartDate);
+          return date >= new Date('2023-10-01T00:00:00Z') && date <= new Date('2023-10-31T23:59:59Z');
+        });
+        if (filteredPrices.length > 0) {
+          await insertIntoDB(filteredPrices, instanceTypeObj, region);
         } else {
           console.log(`No prices available for ${instanceTypeObj.name} in ${region}`);
         }
-      }
+      })());
     }
   }
-  
-  main();
+
+  await Promise.all(promises);
+}
+
+main();
