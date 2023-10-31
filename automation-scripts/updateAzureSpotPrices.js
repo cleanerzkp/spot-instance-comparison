@@ -4,11 +4,6 @@ const SpotPricing = db.SpotPricing;
 const InstanceType = db.InstanceType;
 const Region = db.Region;
 
-if (!SpotPricing) {
-    console.error('SpotPricing model is not defined');
-    process.exit(1);
-}
-
 async function fetchData() {
   const instanceTypes = await InstanceType.findAll({ where: { providerID: 'AZR' } });
   const regions = await Region.findAll({ where: { providerID: 'AZR' } });
@@ -19,16 +14,27 @@ async function fetchData() {
   };
 }
 
-async function fetchAzurePrices(instanceType, region) {
+async function fetchAzurePrices(instanceType, region, nextPageUrl) {
   const apiUrl = 'https://prices.azure.com/api/retail/prices';
   const params = {
-    '$filter': `armRegionName eq '${region}' and armSkuName eq '${instanceType}'`,
+    '$filter': `armRegionName eq '${region}' and armSkuName eq 'Standard_${instanceType}'`,  // Adjusted the armSkuName value
     '$top': 100
   };
 
   try {
-    const response = await axios.get(apiUrl, { params: params });
-    return response.data.Items;
+    let response;
+    if (nextPageUrl) {
+      response = await axios.get(nextPageUrl);
+    } else {
+      response = await axios.get(apiUrl, { params: params });
+    }
+
+    let prices = response.data.Items;
+    if (response.data.NextPageLink) {
+      prices = prices.concat(await fetchAzurePrices(instanceType, region, response.data.NextPageLink));
+    }
+    return prices;
+
   } catch (error) {
     console.error(`Error fetching prices for ${instanceType} in ${region}:`, error.message);
     return [];
@@ -46,7 +52,6 @@ async function insertIntoDB(prices, instanceTypeObj, region) {
       }
     });
 
-    // Adjusted to handle retailPrice from the Azure API response
     const priceValue = parseFloat(price.retailPrice);
 
     if (existingRecord) {
