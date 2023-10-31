@@ -67,6 +67,8 @@ async function insertIntoDB(prices, instanceTypeObj, region) {
         providerID: 'AZR'
       });
     }
+
+    
   }
 }
 async function main() {

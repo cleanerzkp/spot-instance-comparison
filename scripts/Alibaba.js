@@ -7,11 +7,11 @@ const { RPCClient } = require('@alicloud/pop-core');
 const { SpotPricing, sequelize } = require('../models');
 
 const regions = ['us-west-1', 'eu-central-1'];
-const instanceTypes = ['ecs.g5.xlarge', 'ecs.g6.xlarge'];
+const instanceTypes = ['ecs.g5.xlarge', 'ecs.g6.xlarge'];  
 
 const regionEndpoints = {
-  'us-west-1': 'https://ecs.us-west-1.aliyuncs.com',
-  'eu-central-1': 'https://ecs.eu-central-1.aliyuncs.com'
+    'us-west-1': 'https://ecs.us-west-1.aliyuncs.com',
+    'eu-central-1': 'https://ecs.eu-central-1.aliyuncs.com'
 };
 
 async function fetchInstanceGrouping(instanceType) {
@@ -29,8 +29,8 @@ async function fetchAlibabaSpotPrices() {
   for (const region of regions) {
     const endpoint = regionEndpoints[region];
     if (!endpoint) {
-      console.error(`No endpoint specified for region ${region}`);
-      continue;
+        console.error(`No endpoint specified for region ${region}`);
+        continue;
     }
 
     const client = new RPCClient({
@@ -68,7 +68,7 @@ const mapAlibabaDataToDbFormat = async (data) => {
       date: new Date(spot.Timestamp).toISOString(),
       price: parseFloat(spot.SpotPrice),
       timestamp: new Date().toISOString(),
-      providerID: "ALB",
+      providerID: "Alibaba",
       grouping: grouping || "Unknown"
     };
   });
@@ -90,3 +90,13 @@ const runAlibabaScript = async () => {
 };
 
 module.exports = { runAlibabaScript };
+
+const { runAlibabaScript } = require('./Alibaba');
+
+const runAllScripts = async () => {
+  await runAlibabaScript();
+};
+
+runAllScripts()
+  .then(() => console.log('All data saved successfully'))
+  .catch(err => console.error('Error saving data:', err));
