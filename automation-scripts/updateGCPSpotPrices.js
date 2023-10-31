@@ -1,29 +1,59 @@
-const path = require('path');
+require('dotenv').config();
 const { google } = require('googleapis');
-const compute = google.compute('v1');
+const { GoogleAuth } = require('google-auth-library');
+const path = require('path');
+const fs = require('fs');
 
-// Set the path to the JSON service account credentials file.
-const credentialsPath = process.env.GOOGLE_APPLICATION_CREDENTIALS || path.resolve(__dirname, '..', 'GetSpot-Service-Account.json');
+async function main() {
+  // Load client secrets from a file, and setup the GoogleAuth client
+  const credentialsPath = path.resolve(__dirname, '..', 'GetSpot-Service-Account.json');
+  const credentials = JSON.parse(fs.readFileSync(credentialsPath, 'utf8'));
+  const auth = new GoogleAuth({
+    credentials,
+    scopes: ['https://www.googleapis.com/auth/cloud-platform'],
+  });
 
-// Create a new Google Auth client.
-const authClient = new google.auth.GoogleAuth({
-  keyFilename: credentialsPath,
-  scopes: ['https://www.googleapis.com/auth/cloud-platform'],
-});
+  // Obtain client for making requests
+  const authClient = await auth.getClient();
+  const cloudbilling = google.cloudbilling('v1');
+  const request = {
+    auth: authClient,
+    parent: `projects/${credentials.project_id}/services/compute.googleapis.com`,
+    pageSize: 100,
+  };
 
-// Get the price history of spot instances for the e2-standard-4 instance type in the us-east1-a zone.
-compute.spotPriceHistory.list({
-  instanceType: 'e2-standard-4',
-  zone: 'us-east1-a',
-  startTime: '2023-10-20',
-  endTime: '2023-10-22',
-  auth: authClient,
-}, (err, result) => {
-  if (err) {
-    console.log('Error getting spot instance price history:', err);
-    return;
-  }
+  let skus = [];
+  let nextPageToken;
+  const targetInstances = ['e2-standard-4', 'c2-standard-4'];
 
-  // The result object contains the price history of spot instances.
-  console.log(result);
-});
+  do {
+    if (nextPageToken) {
+      request.pageToken = nextPageToken;
+    }
+
+    const result = await cloudbilling.services.skus.list(request);
+    skus = skus.concat(result.data.skus || []);
+    nextPageToken = result.data.nextPageToken;
+
+  } while (nextPageToken);
+
+  const spotSkus = skus.filter(sku => {
+    return sku.category && sku.category.usageType === 'Preemptible' &&
+           targetInstances.some(instance => sku.description.includes(instance));
+  });
+
+  // Format the output
+  spotSkus.forEach(sku => {
+    console.log(`Instance Type: ${sku.description}`);
+    if (sku.pricingInfo && sku.pricingInfo.length > 0) {
+      const pricingExpression = sku.pricingInfo[0].pricingExpression;
+      if (pricingExpression && pricingExpression.tieredRates && pricingExpression.tieredRates.length > 0) {
+        const unitPrice = pricingExpression.tieredRates[0].unitPrice;
+        console.log(`Price: ${unitPrice.currencyCode} ${unitPrice.units}.${unitPrice.nanos / 1e6}`);
+      }
+    }
+    console.log('---');
+  });
+}
+
+main().catch(console.error);

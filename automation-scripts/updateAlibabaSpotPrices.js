@@ -37,12 +37,14 @@ async function fetchData() {
   };  
 }
 
-async function fetchAlibabaSpotPrices(instanceType, region) {
-    const endpoint = regionEndpoints[region];
-    console.log(`Endpoint for ${region}:`, endpoint);
+async function fetchAlibabaSpotPrices(instanceType, subRegion) {
+    // Extract the main region from the sub-region
+    const mainRegion = subRegion.slice(0, -1);
+    const endpoint = regionEndpoints[mainRegion];
+    console.log(`Endpoint for ${subRegion}:`, endpoint);
 
     if (!endpoint) {
-      console.error(`No endpoint found for region ${region}`);
+      console.error(`No endpoint found for region ${subRegion}`);
       return [];
     }
 
@@ -54,7 +56,7 @@ async function fetchAlibabaSpotPrices(instanceType, region) {
     });
 
     const params = {
-      RegionId: region,
+      RegionId: subRegion,  // Use subRegion here
       NetworkType: 'vpc',
       InstanceType: instanceType.name,
       MaxResults: 1000
@@ -63,6 +65,7 @@ async function fetchAlibabaSpotPrices(instanceType, region) {
     const result = await client.request('DescribeSpotPriceHistory', params);
     return result.SpotPrices.SpotPriceType;
 }
+
 
 async function insertIntoDB(dailyAverages, instanceTypeObj, region) {
     for (const date in dailyAverages) {
@@ -131,12 +134,15 @@ async function calculateDailyAverage(instanceTypeObj, region) {
 }
 
 async function main() {
-  const { instanceTypes, regions } = await fetchData();
-  instanceTypes.forEach(instanceTypeObj => {
-    regions.forEach(region => {
-      calculateDailyAverage(instanceTypeObj, region);
+    const { instanceTypes, regions } = await fetchData();
+    instanceTypes.forEach(instanceTypeObj => {
+      regions.forEach(region => {
+          const subRegions = generateSubRegions(region);
+          subRegions.forEach(subRegion => {
+              calculateDailyAverage(instanceTypeObj, subRegion);
+          });
+      });
     });
-  });
-}
-
-main();
+  }
+  
+  main();
