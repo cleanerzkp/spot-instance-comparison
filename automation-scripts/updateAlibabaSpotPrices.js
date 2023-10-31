@@ -13,12 +13,10 @@ const regionEndpoints = {
     'me-east-1': 'https://ecs.me-east-1.aliyuncs.com',
     'ap-south-1': 'https://ecs.ap-south-1.aliyuncs.com'
 };
+
 async function fetchData() {
   const instanceTypes = await InstanceType.findAll({ where: { providerID: 'ALB' } });
   const regions = await Region.findAll({ where: { providerID: 'ALB' } });
-
-  console.log('Fetched instanceTypes and regions from DB:', instanceTypes, regions);
-
   return {
     instanceTypes: instanceTypes.map(it => ({ name: it.name, category: it.category, grouping: it.grouping })),
     regions: regions.map(r => r.name)
@@ -47,46 +45,87 @@ async function fetchAlibabaSpotPrices(instanceType, region) {
       MaxResults: 5,
     };
     const result = await client.request('DescribeSpotPriceHistory', params);
-    console.log(`Fetched spot prices for ${instanceType.name} in ${region}:`, result.SpotPrices.SpotPriceType);
     return result.SpotPrices.SpotPriceType;
   } catch (error) {
     console.error(`Error fetching Alibaba Spot Prices for ${region} ${instanceType.name}:`, error.message);
   }
 }
 
-const mapAlibabaDataToDbFormat = async (data, instanceType) => {
-  return {
-    name: instanceType.name,
-    regionCategory: `ALB-${data.ZoneId}`,
-    date: new Date(data.Timestamp).toISOString(),
-    price: parseFloat(data.SpotPrice),
-    timestamp: new Date().toISOString(),
-    providerID: "ALB",
-    grouping: instanceType.grouping
-  };
-};
 
-const saveToDatabase = async (mappedData) => {
-  console.log('Saving data to DB:', mappedData);
-  await SpotPricing.create(mappedData);
-};
-
-const runAlibabaScript = async () => {
-  const { instanceTypes, regions } = await fetchData();
+async function insertIntoDB(dailyAverages, instanceTypeObj, region) {
+    for (const date in dailyAverages) {
+      const existingRecord = await SpotPricing.findOne({
+        where: {
+          name: `${instanceTypeObj.name}-${instanceTypeObj.category}`,
+          date: new Date(date),
+          regionCategory: `ALB-${region}`
+        }
+      });
   
-  for (const instanceType of instanceTypes) {
-    for (const region of regions) {
-      const alibabaData = await fetchAlibabaSpotPrices(instanceType, region);
-      for (const data of alibabaData) {
-        const mappedData = await mapAlibabaDataToDbFormat(data, instanceType);
-        await saveToDatabase(mappedData);
+      const today = new Date().toISOString().split('T')[0];
+      if (existingRecord && date !== today) {
+        continue;
+      }
+  
+      const price = dailyAverages[date];
+  
+      if (existingRecord && date === today) {
+        await existingRecord.update({ price: price });
+      } else {
+        await SpotPricing.create({
+          name: `${instanceTypeObj.name}-${instanceTypeObj.category}`,
+          regionCategory: `ALB-${region}`,
+          date: new Date(date),
+          price: price,
+          timestamp: new Date(),
+          grouping: instanceTypeObj.grouping,
+          providerID: 'ALB'
+        });
       }
     }
   }
+  
 
-  console.log('Alibaba data saved successfully');
-};
+async function calculateDailyAverage(instanceTypeObj, region) {
+  try {
+    const spotPriceHistory = await fetchAlibabaSpotPrices(instanceTypeObj, region);
 
-runAlibabaScript()
-  .then(() => console.log('All data saved successfully'))
-  .catch(err => console.error('Error saving data:', err));
+    if (spotPriceHistory.length === 0) {
+      console.log(`No prices available for ${instanceTypeObj.name} in ${region}`);
+      return;
+    }
+
+    const pricesByDay = {};
+    const dailyAverages = {};
+
+    spotPriceHistory.forEach(spotPrice => {
+      const date = new Date(spotPrice.Timestamp).toISOString().split('T')[0];
+      if (!pricesByDay[date]) {
+        pricesByDay[date] = [];
+      }
+      pricesByDay[date].push(parseFloat(spotPrice.SpotPrice));
+    });
+
+    for (const date in pricesByDay) {
+      const prices = pricesByDay[date];
+      const sum = prices.reduce((acc, price) => acc + price, 0);
+      const average = sum / prices.length;
+      dailyAverages[date] = average;
+    }
+
+    await insertIntoDB(dailyAverages, instanceTypeObj, region);
+  } catch (error) {
+    console.error('Error calculating daily average:', error.message);
+  }
+}
+
+async function main() {
+  const { instanceTypes, regions } = await fetchData();
+  instanceTypes.forEach(instanceTypeObj => {
+    regions.forEach(region => {
+      calculateDailyAverage(instanceTypeObj, region);
+    });
+  });
+}
+
+main();
