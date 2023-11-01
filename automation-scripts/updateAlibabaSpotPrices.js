@@ -3,6 +3,9 @@ const { RPCClient } = require('@alicloud/pop-core');
 const db = require('../models');
 const { SpotPricing, InstanceType, Region } = db;
 
+// Function to format dates to 'YYYY-MM-DDTHH:mm:ss' (ISO 8601 without milliseconds or timezone offset)
+const formatDate = date => date.toISOString().split('.')[0] + 'Z';
+
 async function fetchData() {
   const instanceTypes = await InstanceType.findAll({ where: { providerID: 'ALB' } });
   const regions = await Region.findAll({ where: { providerID: 'ALB' } });
@@ -21,7 +24,7 @@ async function fetchAlibabaSpotPrices(instanceType, region) {
       return [];
     }
   
-    const endpoint = `https://ecs.${regionData.name}.aliyuncs.com`;  // Set endpoint dynamically based on region name
+    const endpoint = `https://ecs.${regionData.name}.aliyuncs.com`;
   
     const client = new RPCClient({
       accessKeyId: process.env.ALIBABA_ACCESS_KEY_ID,
@@ -30,23 +33,27 @@ async function fetchAlibabaSpotPrices(instanceType, region) {
       apiVersion: '2014-05-26'
     });
   
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  
     try {
       const params = {
-        RegionId: regionData.name,  // Use the region name from the database
+        RegionId: regionData.name,
         NetworkType: 'vpc',
         InstanceType: instanceType.name,
-        MaxResults: 5,
+        StartTime: formatDate(thirtyDaysAgo),
+        EndTime: formatDate(new Date()),
+        MaxResults: 500,
       };
       const result = await client.request('DescribeSpotPriceHistory', params);
-      console.log('API Response:', JSON.stringify(result, null, 2));  // Log the full API response
+      console.log('API Response:', JSON.stringify(result, null, 2));
       return result.SpotPrices.SpotPriceType || [];
     } catch (error) {
       console.error(`Error fetching Alibaba Spot Prices for ${region} ${instanceType.name}:`, error.message);
-      console.error('Error Details:', error);  // Log the full error object
+      console.error('Error Details:', error);
       return [];
     }
 }
-
 
 
 
