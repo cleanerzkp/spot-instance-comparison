@@ -38,11 +38,20 @@ async function fetchGCPSpotPrices(authClient, instanceType, region) {
 
     const items = response.data.skus;
     const specificSkus = [
-      'AB94-9F50-2B3C', 'D276-7CD3-D61E', '929E-B2DA-110A',
-      '9787-23D2-3EA1', '7D01-D6C8-232D', '210D-FDFA-448C',
-      '41F4-F6BE-4AF2', '4111-7FF1-D50A', 'D5C5-E209-22D3',
-      '955B-B00E-ED15'
-        // ... your specific SKUs
+        // c2-standard-4 SKUs
+        'D276-7CD3-D61E', // US East (Virginia)
+        '0CB5-FB1A-2C2A', // US West (Los Angeles)
+        '955B-B00E-ED15', // EU Central (Warsaw)
+        '41F4-F6BE-4AF2', // Near East (Israel)
+        '210D-FDFA-448C', // East India (Delhi)
+        
+        // e2-standard-4 SKUs
+        'D5C5-E209-22D3', // US East (Virginia)
+        '00FD-B743-831B', // US West (Los Angeles)
+        '9787-23D2-3EA1', // EU Central (Warsaw)
+        '9876-7A20-67F0', // Near East (Israel)
+        '0B33-C7D0-C5A9'  // East India (Delhi)
+        //https://cloud.google.com/skus/sku-groups/compute-engine-flexible-cud-eligible-skus
     ];
 
     const prices = [];
