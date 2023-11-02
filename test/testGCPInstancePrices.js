@@ -1,52 +1,72 @@
-require('dotenv').config({ path: '../.env' });
 const axios = require('axios');
+const { GoogleAuth } = require('google-auth-library');
+const path = require('path');
 
-const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY;
-const regionsToCheck = ['us-central1', 'asia-east1'];
-const instanceTypesToCheck = ['e2-standard-4', 'c2-standard-4'];
-
-async function fetchGCPSpotInstances() {
-  const endpoint = `https://cloudbilling.googleapis.com/v1/services/6F81-5844-456A/skus?key=${GOOGLE_API_KEY}`;
-
-  try {
-    const response = await axios.get(endpoint);
-    console.log('Raw Response:', response.data);
-
-    if (!response.data || !response.data.skus) {
-      console.log('Unexpected response structure.');
-      return;
-    }
-
-    const skus = response.data.skus;
-    console.log('All SKUs:', skus);
-
-    const filteredSkus = skus.filter(sku =>
-      regionsToCheck.includes(sku.serviceRegions[0]) &&
-      instanceTypesToCheck.some(type => sku.description.includes(type)) &&
-      sku.category.usageType === 'Preemptible'
-    );
-
-    if (filteredSkus.length > 0) {
-      const formattedSkus = filteredSkus.map(sku => {
-        const price = parseFloat(`${sku.pricingInfo[0].pricingExpression.tieredRates[0].unitPrice.units}.${sku.pricingInfo[0].pricingExpression.tieredRates[0].unitPrice.nanos / 1e9}`).toFixed(5);
-        return {
-          Description: sku.description,
-          Price: `$${price}`,
-          Region: sku.serviceRegions[0],
-          Timestamp: sku.pricingInfo[0].effectiveTime,
-        };
-      });
-
-      console.log('\nGCP Spot Instances in Specified Regions and Types:', formattedSkus);
-    } else {
-      console.log('No matching preemptible SKUs found.');
-    }
-  } catch (error) {
-    console.log('Error:', error.message);
-    if (error.response) {
-      console.log('Error response data:', error.response.data);
-    }
-  }
+async function authenticate() {
+    const credentialsPath = path.resolve(__dirname, '../GetSpot-Service-Account.json');
+    const auth = new GoogleAuth({
+        keyFilename: credentialsPath,
+        scopes: ['https://www.googleapis.com/auth/cloud-platform'],
+    });
+    const authClient = await auth.getClient();
+    return authClient;
 }
 
-fetchGCPSpotInstances();
+async function fetchGCPSpotPrices(authClient) {
+    const projectId = 'getspot-402212'; 
+    const serviceId = '6F81-5844-456A';
+    const url = `https://cloudbilling.googleapis.com/v1/services/${serviceId}/skus`;
+
+    const accessToken = await authClient.getAccessToken();
+    const response = await axios.get(url, {
+        headers: {
+            Authorization: `Bearer ${accessToken.token}`,
+        },
+    });
+    
+    const items = response.data.skus;
+    const specificSkus = [
+      'D276-7CD3-D61E', // US East (Virginia)
+        '0CB5-FB1A-2C2A'
+        // ... your SKUs
+    ];
+
+    const prices = [];
+    items.forEach(item => {
+        if (specificSkus.includes(item.skuId)) {
+            const pricingInfo = item.pricingInfo;
+            pricingInfo.forEach(price => {
+                const pricingExpression = price.pricingExpression;
+                const tieredRates = pricingExpression.tieredRates;
+                tieredRates.forEach(rate => {
+                    const unitPrice = rate.unitPrice;
+                    const currencyCode = unitPrice.currencyCode;
+                    const units = unitPrice.units;
+                    const nanos = unitPrice.nanos;
+                    prices.push({
+                        description: item.description,
+                        price: parseFloat(`${units}.${nanos}`),
+                        currency: currencyCode,
+                        sku: item.skuId  // include SKU in the output
+                    });
+                });
+            });
+        }
+    });
+    return prices;
+}
+
+async function main() {
+    const authClient = await authenticate();
+    const data = await fetchGCPSpotPrices(authClient);
+    
+    if (data && data.length > 0) {
+        data.forEach(priceInfo => {
+            console.log(`SKU: ${priceInfo.sku}, Description: ${priceInfo.description}, Price: ${priceInfo.price} ${priceInfo.currency}`);
+        });
+    } else {
+        console.log('No matching SKUs found or no price data available for the specified SKUs.');
+    }
+}
+
+main();
