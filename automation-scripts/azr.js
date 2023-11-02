@@ -1,25 +1,24 @@
 const axios = require('axios');
 
-async function getB4msPrice() {
+async function getInstancePrice(instanceType) {
   try {
     const response = await axios.get("https://prices.azure.com/api/retail/prices", {
       params: {
         "api-version": "2023-01-01-preview",
-        "$filter": "armSkuName eq 'Standard_B4ms'",
+        "$filter": `armSkuName eq 'Standard_${instanceType}'`,
         "$top": 1000
       }
     });
     const data = response.data;
-    if (data && data.Items) {
+    if (data && data.Items && data.Items.length > 0) {
       data.Items.forEach(item => {
-        console.log(`Region: ${item.armRegionName}, Price: $${item.retailPrice}/hr`);
+        console.log(`Instance Type: ${instanceType}, Region: ${item.armRegionName}, Price: $${item.retailPrice}/hr`);
       });
     } else {
-      console.log('No data found');
+      console.log(`No price data found for Standard_${instanceType}`);
     }
   } catch (error) {
-    console.error(`Error: ${error.message}`);
+    console.error(`Error fetching prices for Standard_${instanceType}: ${error.message}`);
   }
 }
-
-getB4msPrice();
+getInstancePrice();

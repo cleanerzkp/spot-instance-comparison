@@ -1,98 +1,94 @@
-const db = require('../models');
 const axios = require('axios');
-const SpotPricing = db.SpotPricing;
-const InstanceType = db.InstanceType;
-const Region = db.Region;
+const db = require('../models');
 
 async function fetchData() {
-  const instanceTypes = await InstanceType.findAll({ where: { providerID: 'AZR' } });
-  const regions = await Region.findAll({ where: { providerID: 'AZR' } });
+  try {
+    const instanceTypes = await db.InstanceType.findAll({ where: { providerID: 'AZR' } });
+    const regions = await db.Region.findAll({ where: { providerID: 'AZR' } });
 
-  return {
-    instanceTypes: instanceTypes.map(it => ({ name: it.name, category: it.category, grouping: it.grouping })),
-    regions: regions.map(r => r.name)
-  };
+    return {
+      instanceTypes: instanceTypes.map(it => ({ id: it.id, name: it.name, category: it.category, grouping: it.grouping })),
+      regions: regions.map(r => r.name)
+    };
+  } catch (error) {
+    console.error('Error fetching data from database:', error.message);
+    return { instanceTypes: [], regions: [] };
+  }
 }
 
-async function fetchAzurePrices(instanceType, region, nextPageUrl) {
+async function fetchAzurePrices(instanceType, region) {
   const apiUrl = 'https://prices.azure.com/api/retail/prices';
   const params = {
-    '$filter': `armRegionName eq '${region}' and armSkuName eq 'Standard_${instanceType}' and productFamily eq 'Compute' and meterName eq 'Spot Reservation' and effectiveStartDate ge 2023-10-01 and effectiveStartDate le 2023-10-31`,
-    '$top': 100
+    'api-version': '2023-01-01-preview',
+    '$filter': `armRegionName eq '${region}' and armSkuName eq 'Standard_${instanceType}'`,
+    '$top': 1000
   };
-  
+
   try {
-    let response;
-    if (nextPageUrl) {
-      response = await axios.get(nextPageUrl);
+    const response = await axios.get(apiUrl, { params });
+    if (response.data && response.data.Items) {
+      return response.data.Items;
     } else {
-      response = await axios.get(apiUrl, { params: params });
+      console.log(`No price data found for ${instanceType} in ${region}`);
+      return [];
     }
-
-    let prices = response.data.Items;
-    if (response.data.NextPageLink) {
-      prices = prices.concat(await fetchAzurePrices(instanceType, region, response.data.NextPageLink));
-    }
-    return prices;
-
   } catch (error) {
     console.error(`Error fetching prices for ${instanceType} in ${region}:`, error.message);
     return [];
   }
 }
 
-async function insertIntoDB(prices, instanceTypeObj, region) {
-  for (const price of prices) {
-    const date = new Date(price.effectiveStartDate).toISOString().split('T')[0];
-    const priceValue = parseFloat(price.retailPrice);
-    
-    // Ignoring outlier prices
-    if (priceValue > 10) {
-      console.log(`Ignoring outlier price: ${priceValue} for ${instanceTypeObj.name} in ${region}`);
-      continue;
-    }
+async function insertIntoDB(avgPrices, instanceTypeObj, region) {
+  const today = new Date();
 
-    const existingRecord = await SpotPricing.findOne({
-      where: {
-        name: `${instanceTypeObj.name}-${instanceTypeObj.category}`,
-        date: new Date(date),
-        regionCategory: `AZR-${region}`
-      }
-    });
-
-    if (existingRecord) {
-      // Updating with new price value if it's different
-      if (existingRecord.price !== priceValue) {
-        await existingRecord.update({ price: priceValue });
-      }
-    } else {
-      await SpotPricing.create({
+  try {
+    for (const [region, avgPrice] of Object.entries(avgPrices)) {
+      await db.SpotPricing.create({
         name: `${instanceTypeObj.name}-${instanceTypeObj.category}`,
         regionCategory: `AZR-${region}`,
-        date: new Date(date),
-        price: priceValue,
-        timestamp: new Date(),
+        date: today,
+        price: avgPrice,
+        timestamp: today,
+        createdAt: today,
+        updatedAt: today,
         grouping: instanceTypeObj.grouping,
         providerID: 'AZR'
       });
     }
+  } catch (error) {
+    console.error('Error inserting data into database:', error.message);
   }
 }
 
 async function main() {
   const { instanceTypes, regions } = await fetchData();
+  if (instanceTypes.length === 0 || regions.length === 0) {
+    console.error('No instance types or regions available to fetch prices for.');
+    return;
+  }
+
   const promises = [];
 
   for (const instanceTypeObj of instanceTypes) {
     for (const region of regions) {
       promises.push((async () => {
         const prices = await fetchAzurePrices(instanceTypeObj.name, region);
-        const filteredPrices = prices.filter(price => {
-          const date = new Date(price.effectiveStartDate);
-          return date >= new Date('2023-10-01T00:00:00Z') && date <= new Date('2023-10-31T23:59:59Z');
-        });
-        if (filteredPrices.length > 0) {
-          await insertIntoDB(filteredPrices, instanceTypeObj, region);
+        if (prices.length > 0) {
+          const avgPrices = prices.reduce((acc, price) => {
+            const priceValue = parseFloat(price.retailPrice);
+            if (!isNaN(priceValue) && priceValue <= 10) { // Assuming you want to filter out prices higher than 10
+              acc[region] = (acc[region] || [0, 0]);
+              acc[region][0] += priceValue;
+              acc[region][1] += 1;
+            }
+            return acc;
+          }, {});
+
+          for (const region in avgPrices) {
+            avgPrices[region] = avgPrices[region][0] / avgPrices[region][1];
+          }
+
+          await insertIntoDB(avgPrices, instanceTypeObj, region);
         } else {
           console.log(`No prices available for ${instanceTypeObj.name} in ${region}`);
         }
@@ -103,4 +99,4 @@ async function main() {
   await Promise.all(promises);
 }
 
-main();
+main().catch(error => console.error('Error in main function:', error.message));
