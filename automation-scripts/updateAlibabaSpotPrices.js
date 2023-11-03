@@ -29,15 +29,24 @@ async function fetchAlibabaSpotPrices(instanceType, region) {
         apiVersion: '2014-05-26',
         opts: { timeout: 10000 }
     });
-    const oneWeekAgo = new Date();
-    oneWeekAgo.setDate(oneWeekAgo.getDate() - 1);
+
+    // Calculate the start and end times to always be at 9 AM UTC
+    const endTime = new Date(); // Today's date
+    endTime.setUTCHours(9, 0, 0, 0); // Set to 9 AM UTC
+    if (new Date() < endTime) {
+      // If the current time is before 9 AM UTC, subtract a day.
+      endTime.setDate(endTime.getDate() - 1);
+    }
+    const startTime = new Date(endTime);
+    startTime.setDate(startTime.getDate() - 1); // Set to one day before the end time
+
     try {
       const params = {
         RegionId: regionData.name,
         NetworkType: 'vpc',
         InstanceType: instanceType.name,
-        StartTime: formatDate(oneWeekAgo),
-        EndTime: formatDate(new Date()),
+        StartTime: formatDate(startTime),
+        EndTime: formatDate(endTime),
         MaxResults: 500,
       };
       const result = await client.request('DescribeSpotPriceHistory', params);
