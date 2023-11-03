@@ -93,38 +93,40 @@ async function insertIntoDB(dailyAverages, instanceTypeObj, region) {
   }
   
 
-async function calculateDailyAverage(instanceTypeObj, region) {
-  try {
-    const spotPriceHistory = await fetchAlibabaSpotPrices(instanceTypeObj, region);
-
-    if (spotPriceHistory.length === 0) {
-      console.log(`No prices available for ${instanceTypeObj.name} in ${region}`);
-      return;
-    }
-
-    const pricesByDay = {};
-    const dailyAverages = {};
-
-    spotPriceHistory.forEach(spotPrice => {
-      const date = new Date(spotPrice.Timestamp).toISOString().split('T')[0];
-      if (!pricesByDay[date]) {
-        pricesByDay[date] = [];
+  async function calculateDailyAverage(instanceTypeObj, region) {
+    try {
+      const spotPriceHistory = await fetchAlibabaSpotPrices(instanceTypeObj, region);
+  
+      if (spotPriceHistory.length === 0) {
+        console.log(`No prices available for ${instanceTypeObj.name} in ${region}`);
+        return;
       }
-      pricesByDay[date].push(parseFloat(spotPrice.SpotPrice));
-    });
-
-    for (const date in pricesByDay) {
-      const prices = pricesByDay[date];
-      const sum = prices.reduce((acc, price) => acc + price, 0);
-      const average = sum / prices.length;
-      dailyAverages[date] = average;
+  
+      const pricesByDay = {};
+      const dailyAverages = {};
+  
+      spotPriceHistory.forEach(spotPrice => {
+        const date = new Date(spotPrice.Timestamp);
+        date.setUTCHours(9, 0, 0, 0);  // Standardize to 9 AM UTC
+        const standardizedDate = date.toISOString().split('T')[0];
+        if (!pricesByDay[standardizedDate]) {
+          pricesByDay[standardizedDate] = [];
+        }
+        pricesByDay[standardizedDate].push(parseFloat(spotPrice.SpotPrice));
+      });
+  
+      for (const date in pricesByDay) {
+        const prices = pricesByDay[date];
+        const sum = prices.reduce((acc, price) => acc + price, 0);
+        const average = sum / prices.length;
+        dailyAverages[date] = average;
+      }
+  
+      await insertIntoDB(dailyAverages, instanceTypeObj, region);
+    } catch (error) {
+      console.error('Error calculating daily average:', error.message);
     }
-
-    await insertIntoDB(dailyAverages, instanceTypeObj, region);
-  } catch (error) {
-    console.error('Error calculating daily average:', error.message);
   }
-}
 
 async function main() {
   const { instanceTypes, regions } = await fetchData();
