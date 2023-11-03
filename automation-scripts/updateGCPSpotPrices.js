@@ -77,22 +77,36 @@ async function fetchGCPSpotPrices(authClient, instanceType, region) {
     });
     return prices;
 }
+async function insertIntoDB(prices, instanceTypeObj, region) {
+  const today = new Date();
+  today.setHours(9, 0, 0, 0);  // Set time to 9 AM
+  const todayStr = today.toISOString().split('T')[0];
 
-async function insertIntoDB(data, instanceTypeObj, region) {
-    const mappedData = data.map(spot => ({
-        name: `${instanceTypeObj.name}-${instanceTypeObj.category}`,
-        regionCategory: `GCP-${region}`,
-        date: new Date(),
-        price: spot.price,
-        timestamp: new Date(),
-        grouping: instanceTypeObj.grouping,
-        providerID: 'GCP'
-    }));
+  for (const priceObj of prices) {
+      const existingRecord = await SpotPricing.findOne({
+          where: {
+              name: `${instanceTypeObj.name}-${instanceTypeObj.category}`,
+              date: today,
+              regionCategory: `GCP-${region}`
+          }
+      });
 
-    for (const entry of mappedData) {
-        await SpotPricing.create(entry);
-    }
+      if (existingRecord) {
+          await existingRecord.update({ price: priceObj.price });
+      } else {
+          await SpotPricing.create({
+              name: `${instanceTypeObj.name}-${instanceTypeObj.category}`,
+              regionCategory: `GCP-${region}`,
+              date: today,
+              price: priceObj.price,
+              timestamp: new Date(),
+              grouping: instanceTypeObj.grouping,
+              providerID: 'GCP'
+          });
+      }
+  }
 }
+
 
 async function main() {
     const authClient = await authenticate();
