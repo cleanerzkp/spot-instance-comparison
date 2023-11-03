@@ -27,12 +27,14 @@ async function fetchAlibabaSpotPrices(instanceType, region) {
     const endpoint = `https://ecs.${regionData.name}.aliyuncs.com`;
   
     const client = new RPCClient({
-      accessKeyId: process.env.ALIBABA_ACCESS_KEY_ID,
-      accessKeySecret: process.env.ALIBABA_ACCESS_KEY_SECRET,
-      endpoint: endpoint,
-      apiVersion: '2014-05-26'
-    });
-  
+        accessKeyId: process.env.ALIBABA_ACCESS_KEY_ID,
+        accessKeySecret: process.env.ALIBABA_ACCESS_KEY_SECRET,
+        endpoint: endpoint,
+        apiVersion: '2014-05-26',
+        opts: {
+          timeout: 10000  //  10 seconds timeout
+        }
+      });
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
   

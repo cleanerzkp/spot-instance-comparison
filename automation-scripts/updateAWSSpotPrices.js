@@ -3,9 +3,7 @@ process.env.AWS_ACCESS_KEY_ID = process.env.AWS_ACCESS_KEY;
 process.env.AWS_SECRET_ACCESS_KEY = process.env.AWS_SECRET_KEY;
 
 const db = require('../models');
-const SpotPricing = db.SpotPricing;
-const InstanceType = db.InstanceType;
-const Region = db.Region;
+const { SpotPricing, InstanceType, Region } = db;
 const { exec } = require('child_process');
 
 async function fetchData() {

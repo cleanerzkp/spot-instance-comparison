@@ -5,7 +5,7 @@ const ALIBABA_ACCESS_KEY_SECRET = process.env.ALIBABA_ACCESS_KEY_SECRET;
 const { RPCClient } = require('@alicloud/pop-core');
 
 const regions = ['us-west-1', 'eu-central-1'];
-const instanceTypes = ['ecs.g5.xlarge', 'ecs.g6.xlarge'];  
+const instanceTypes = ['ecs.g5.xlarge', 'ecs.c6.xlarge'];  
 
 const regionEndpoints = {
     'us-west-1': 'https://ecs.us-west-1.aliyuncs.com',
