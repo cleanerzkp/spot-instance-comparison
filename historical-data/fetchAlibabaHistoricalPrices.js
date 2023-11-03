@@ -35,15 +35,15 @@ async function fetchAlibabaSpotPrices(instanceType, region) {
           timeout: 10000  //  10 seconds timeout
         }
       });
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const oneWeekAgo = new Date();
+      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
   
     try {
       const params = {
         RegionId: regionData.name,
         NetworkType: 'vpc',
         InstanceType: instanceType.name,
-        StartTime: formatDate(thirtyDaysAgo),
+        StartTime: formatDate(oneWeekAgo),
         EndTime: formatDate(new Date()),
         MaxResults: 500,
       };
