@@ -18,7 +18,12 @@ async function fetchData() {
 
 async function fetchAWSSpotPrices(instanceType, region) {
   return new Promise((resolve, reject) => {
-    exec(`aws ec2 describe-spot-price-history --instance-types ${instanceType.name} --region ${region} --max-items 1000 --product-descriptions "Linux/UNIX" --output json`, (error, stdout, stderr) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);  
+
+    exec(`aws ec2 describe-spot-price-history --instance-types ${instanceType.name} --region ${region} --start-time ${today.toISOString()} --end-time ${tomorrow.toISOString()} --max-items 1000 --product-descriptions "Linux/UNIX" --output json`, (error, stdout, stderr) => {
       if (error) {
         console.error(`Error: ${error.message}`);
         return reject(error);
