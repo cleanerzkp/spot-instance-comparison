@@ -32,31 +32,28 @@ async function fetchAWSSpotPrices(instanceType, region) {
     });
   });
 }
-
 async function insertIntoDB(dailyAverages, instanceTypeObj, region) {
   for (const date in dailyAverages) {
+    const standardizedDate = new Date(date);
+    standardizedDate.setHours(9, 0, 0, 0);  // Set time to 9 AM
+
     const existingRecord = await SpotPricing.findOne({
       where: {
         name: `${instanceTypeObj.name}-${instanceTypeObj.category}`,
-        date: new Date(date),
+        date: standardizedDate,
         regionCategory: `AWS-${region}`
       }
     });
 
-    const today = new Date().toISOString().split('T')[0];
-    if (existingRecord && date !== today) {
-      continue;
-    }
-
     const price = dailyAverages[date];
 
-    if (existingRecord && date === today) {
+    if (existingRecord) {
       await existingRecord.update({ price: price });
     } else {
       await SpotPricing.create({
         name: `${instanceTypeObj.name}-${instanceTypeObj.category}`,
         regionCategory: `AWS-${region}`,
-        date: new Date(date),
+        date: standardizedDate,
         price: price,
         timestamp: new Date(),
         grouping: instanceTypeObj.grouping,
@@ -65,6 +62,7 @@ async function insertIntoDB(dailyAverages, instanceTypeObj, region) {
     }
   }
 }
+
 async function calculateDailyAverage(instanceTypeObj, region) {
   try {
     const result = await fetchAWSSpotPrices(instanceTypeObj, region);
