@@ -44,14 +44,6 @@ async function fetchGCPSpotPrices(authClient, instanceType, region) {
         '955B-B00E-ED15', // EU Central (Warsaw)
         '41F4-F6BE-4AF2', // Near East (Israel)
         '210D-FDFA-448C', // East India (Delhi)
-        
-        // e2-standard-4 SKUs
-        'D5C5-E209-22D3', // US East (Virginia)
-        '00FD-B743-831B', // US West (Los Angeles)
-        '9787-23D2-3EA1', // EU Central (Warsaw)
-        '9876-7A20-67F0', // Near East (Israel)
-        '0B33-C7D0-C5A9'  // East India (Delhi)
-        //https://cloud.google.com/skus/sku-groups/compute-engine-flexible-cud-eligible-skus
     ];
 
     const prices = [];
@@ -77,36 +69,36 @@ async function fetchGCPSpotPrices(authClient, instanceType, region) {
     });
     return prices;
 }
+
 async function insertIntoDB(prices, instanceTypeObj, region) {
-  const today = new Date();
-  today.setHours(9, 0, 0, 0);  // Set time to 9 AM
-  const todayStr = today.toISOString().split('T')[0];
+    const today = new Date();
+    today.setHours(9, 0, 0, 0);  // Set time to 9 AM
+    const todayStr = today.toISOString().split('T')[0];
 
-  for (const priceObj of prices) {
-      const existingRecord = await SpotPricing.findOne({
-          where: {
-              name: `${instanceTypeObj.name}-${instanceTypeObj.category}`,
-              date: today,
-              regionCategory: `GCP-${region}`
-          }
-      });
+    for (const priceObj of prices) {
+        const existingRecord = await SpotPricing.findOne({
+            where: {
+                name: `${instanceTypeObj.name}-${instanceTypeObj.category}`,
+                date: today,
+                regionCategory: `GCP-${region}`
+            }
+        });
 
-      if (existingRecord) {
-          await existingRecord.update({ price: priceObj.price });
-      } else {
-          await SpotPricing.create({
-              name: `${instanceTypeObj.name}-${instanceTypeObj.category}`,
-              regionCategory: `GCP-${region}`,
-              date: today,
-              price: priceObj.price,
-              timestamp: new Date(),
-              grouping: instanceTypeObj.grouping,
-              providerID: 'GCP'
-          });
-      }
-  }
+        if (existingRecord) {
+            await existingRecord.update({ price: priceObj.price });
+        } else {
+            await SpotPricing.create({
+                name: `${instanceTypeObj.name}-${instanceTypeObj.category}`,
+                regionCategory: `GCP-${region}`,
+                date: today,
+                price: priceObj.price,
+                timestamp: new Date(),
+                grouping: instanceTypeObj.grouping,
+                providerID: 'GCP'
+            });
+        }
+    }
 }
-
 
 async function main() {
     const authClient = await authenticate();
