@@ -4,6 +4,22 @@ const path = require('path');
 const db = require('../models');
 const { SpotPricing, InstanceType, Region } = db;
 
+const specificSkus = [
+    // c2-standard-4 SKUs
+    'D276-7CD3-D61E', // US East (Virginia)
+    '0CB5-FB1A-2C2A', // US West (Los Angeles)
+    '955B-B00E-ED15', // EU Central (Warsaw)
+    '41F4-F6BE-4AF2', // Near East (Israel)
+    '210D-FDFA-448C', // East India (Delhi)
+    
+    // e2-standard-4 SKUs
+    'D5C5-E209-22D3', // US East (Virginia)
+    '00FD-B743-831B', // US West (Los Angeles)
+    '9787-23D2-3EA1', // EU Central (Warsaw)
+    '9876-7A20-67F0', // Near East (Israel)
+    '0B33-C7D0-C5A9'  // East India (Delhi)
+];
+
 async function authenticate() {
     const credentialsPath = path.resolve(__dirname, '../GetSpot-Service-Account.json');
     const auth = new GoogleAuth({
@@ -14,16 +30,7 @@ async function authenticate() {
     return authClient;
 }
 
-async function fetchData() {
-    const instanceTypes = await InstanceType.findAll({ where: { providerID: 'GCP' } });
-    const regions = await Region.findAll({ where: { providerID: 'GCP' } });
-    return {
-        instanceTypes: instanceTypes.map(it => ({ name: it.name, category: it.category, grouping: it.grouping })),
-        regions: regions.map(r => r.standardizedRegion)
-    };  
-}
-
-async function fetchGCPSpotPrices(authClient, instanceType, region) {
+async function fetchGCPSpotPrices(authClient) {
     const projectId = 'getspot-402212'; 
     const serviceId = '6F81-5844-456A';
     const url = `https://cloudbilling.googleapis.com/v1/services/${serviceId}/skus`;
@@ -36,70 +43,55 @@ async function fetchGCPSpotPrices(authClient, instanceType, region) {
     });
     
     const items = response.data.skus;
-    const specificSkus = [
-        // c2-standard-4 SKUs
-        'D276-7CD3-D61E', // US East (Virginia)
-        '0CB5-FB1A-2C2A', // US West (Los Angeles)
-        '955B-B00E-ED15', // EU Central (Warsaw)
-        '41F4-F6BE-4AF2', // Near East (Israel)
-        '210D-FDFA-448C', // East India (Delhi)
-        
-        // e2-standard-4 SKUs
-        'D5C5-E209-22D3', // US East (Virginia)
-        '00FD-B743-831B', // US West (Los Angeles)
-        '9787-23D2-3EA1', // EU Central (Warsaw)
-        '9876-7A20-67F0', // Near East (Israel)
-        '0B33-C7D0-C5A9'  // East India (Delhi)
-        //https://cloud.google.com/skus/sku-groups/compute-engine-flexible-cud-eligible-skus
-    ];
-
-  const prices = [];
-  items.forEach(item => {
-      if (specificSkus.includes(item.skuId)) {
-          const pricingInfo = item.pricingInfo;
-          pricingInfo.forEach(price => {
-              const pricingExpression = price.pricingExpression;
-              const tieredRates = pricingExpression.tieredRates;
-              tieredRates.forEach(rate => {
-                  const unitPrice = rate.unitPrice;
-                  const currencyCode = unitPrice.currencyCode;
-                  const units = unitPrice.units;
-                  const nanos = unitPrice.nanos;
-                  prices.push({
-                      description: item.description,
-                      price: parseFloat(`${units}.${nanos}`),
-                      currency: currencyCode
-                  });
-              });
-          });
-      }
-  });
-  return prices;
+    const prices = [];
+    items.forEach(item => {
+        if (specificSkus.includes(item.skuId)) {
+            const pricingInfo = item.pricingInfo;
+            pricingInfo.forEach(price => {
+                const pricingExpression = price.pricingExpression;
+                const tieredRates = pricingExpression.tieredRates;
+                tieredRates.forEach(rate => {
+                    const unitPrice = rate.unitPrice;
+                    const currencyCode = unitPrice.currencyCode;
+                    const units = unitPrice.units;
+                    const nanos = unitPrice.nanos;
+                    prices.push({
+                        description: item.description,
+                        price: parseFloat(`${units}.${nanos}`),
+                        currency: currencyCode,
+                        sku: item.skuId,
+                        region: item.serviceRegions[0]  // Assumes each SKU is associated with a single region
+                    });
+                });
+            });
+        }
+    });
+    return prices;
 }
 
-async function insertIntoDB(prices, instanceTypeObj, region) {
+async function insertIntoDB(data) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);  // Set time to midnight for consistent comparison
 
-    for (const priceObj of prices) {
+    for (const entry of data) {
         const existingRecord = await SpotPricing.findOne({
             where: {
-                name: `${instanceTypeObj.name}-${instanceTypeObj.category}`,
-                regionCategory: `GCP-${region}`,
+                name: entry.description,
+                regionCategory: `GCP-${entry.region}`,
                 date: today
             }
         });
 
         if (existingRecord) {
-            await existingRecord.update({ price: priceObj.price, timestamp: new Date() });
+            await existingRecord.update({ price: entry.price, timestamp: new Date() });
         } else {
             await SpotPricing.create({
-                name: `${instanceTypeObj.name}-${instanceTypeObj.category}`,
-                regionCategory: `GCP-${region}`,
+                name: entry.description,
+                regionCategory: `GCP-${entry.region}`,
                 date: today,
-                price: priceObj.price,
+                price: entry.price,
                 timestamp: new Date(),
-                grouping: instanceTypeObj.grouping,
+                grouping: entry.sku,  // SKU is used for grouping in this script
                 providerID: 'GCP'
             });
         }
@@ -108,22 +100,11 @@ async function insertIntoDB(prices, instanceTypeObj, region) {
 
 async function main() {
     const authClient = await authenticate();
-    const { instanceTypes, regions } = await fetchData();
-    
-    for (const instanceTypeObj of instanceTypes) {
-        for (const region of regions) {
-            const data = await fetchGCPSpotPrices(authClient, instanceTypeObj, region);
-            if (data && data.length > 0) {
-                await insertIntoDB(data, instanceTypeObj, region);
-            }
-        }
+    const data = await fetchGCPSpotPrices(authClient);
+    if (data && data.length > 0) {
+        await insertIntoDB(data);
     }
-    
     console.log('GCP data saved successfully');
 }
 
-async function runGCPScript() {
-  await main();
-}
-
-module.exports = runGCPScript;
+main();
