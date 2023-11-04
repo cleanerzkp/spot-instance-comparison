@@ -37,29 +37,44 @@ async function fetchAzurePrices(instanceType, region) {
     return [];
   }
 }
-
 async function insertIntoDB(avgPrices, instanceTypeObj, region) {
   const today = new Date();
+  today.setHours(0, 0, 0, 0);
 
   try {
     for (const [region, avgPrice] of Object.entries(avgPrices)) {
-      await db.SpotPricing.create({
-        name: `${instanceTypeObj.name}-${instanceTypeObj.category}`,
-        regionCategory: `AZR-${region}`,
-        date: today,
-        price: avgPrice,
-        timestamp: today,
-        createdAt: today,
-        updatedAt: today,
-        grouping: instanceTypeObj.grouping,
-        providerID: 'AZR'
+      const existingRecord = await db.SpotPricing.findOne({
+        where: {
+          name: `${instanceTypeObj.name}-${instanceTypeObj.category}`,
+          regionCategory: `AZR-${region}`,
+          date: today
+        }
       });
+
+      if (existingRecord) {
+        await existingRecord.update({
+          price: avgPrice,
+          timestamp: today,
+          updatedAt: today
+        });
+      } else {
+        await db.SpotPricing.create({
+          name: `${instanceTypeObj.name}-${instanceTypeObj.category}`,
+          regionCategory: `AZR-${region}`,
+          date: today,
+          price: avgPrice,
+          timestamp: today,
+          createdAt: today,
+          updatedAt: today,
+          grouping: instanceTypeObj.grouping,
+          providerID: 'AZR'
+        });
+      }
     }
   } catch (error) {
     console.error('Error inserting data into database:', error.message);
   }
 }
-
 async function main() {
   const { instanceTypes, regions } = await fetchData();
   if (instanceTypes.length === 0 || regions.length === 0) {
@@ -76,7 +91,7 @@ async function main() {
         if (prices.length > 0) {
           const avgPrices = prices.reduce((acc, price) => {
             const priceValue = parseFloat(price.retailPrice);
-            if (!isNaN(priceValue) && priceValue <= 10) { // Assuming you want to filter out prices higher than 10
+            if (!isNaN(priceValue) && priceValue <= 10) { 
               acc[region] = (acc[region] || [0, 0]);
               acc[region][0] += priceValue;
               acc[region][1] += 1;

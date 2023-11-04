@@ -35,7 +35,6 @@ async function fetchGCPSpotPrices(authClient, instanceType, region) {
         },
     });
     
-
     const items = response.data.skus;
     const specificSkus = [
         // c2-standard-4 SKUs
@@ -44,48 +43,55 @@ async function fetchGCPSpotPrices(authClient, instanceType, region) {
         '955B-B00E-ED15', // EU Central (Warsaw)
         '41F4-F6BE-4AF2', // Near East (Israel)
         '210D-FDFA-448C', // East India (Delhi)
+        
+        // e2-standard-4 SKUs
+        'D5C5-E209-22D3', // US East (Virginia)
+        '00FD-B743-831B', // US West (Los Angeles)
+        '9787-23D2-3EA1', // EU Central (Warsaw)
+        '9876-7A20-67F0', // Near East (Israel)
+        '0B33-C7D0-C5A9'  // East India (Delhi)
+        //https://cloud.google.com/skus/sku-groups/compute-engine-flexible-cud-eligible-skus
     ];
 
-    const prices = [];
-    items.forEach(item => {
-        if (specificSkus.includes(item.skuId)) {
-            const pricingInfo = item.pricingInfo;
-            pricingInfo.forEach(price => {
-                const pricingExpression = price.pricingExpression;
-                const tieredRates = pricingExpression.tieredRates;
-                tieredRates.forEach(rate => {
-                    const unitPrice = rate.unitPrice;
-                    const currencyCode = unitPrice.currencyCode;
-                    const units = unitPrice.units;
-                    const nanos = unitPrice.nanos;
-                    prices.push({
-                        description: item.description,
-                        price: parseFloat(`${units}.${nanos}`),
-                        currency: currencyCode
-                    });
-                });
-            });
-        }
-    });
-    return prices;
+  const prices = [];
+  items.forEach(item => {
+      if (specificSkus.includes(item.skuId)) {
+          const pricingInfo = item.pricingInfo;
+          pricingInfo.forEach(price => {
+              const pricingExpression = price.pricingExpression;
+              const tieredRates = pricingExpression.tieredRates;
+              tieredRates.forEach(rate => {
+                  const unitPrice = rate.unitPrice;
+                  const currencyCode = unitPrice.currencyCode;
+                  const units = unitPrice.units;
+                  const nanos = unitPrice.nanos;
+                  prices.push({
+                      description: item.description,
+                      price: parseFloat(`${units}.${nanos}`),
+                      currency: currencyCode
+                  });
+              });
+          });
+      }
+  });
+  return prices;
 }
 
 async function insertIntoDB(prices, instanceTypeObj, region) {
     const today = new Date();
-    today.setHours(9, 0, 0, 0);  // Set time to 9 AM
-    const todayStr = today.toISOString().split('T')[0];
+    today.setHours(0, 0, 0, 0);  // Set time to midnight for consistent comparison
 
     for (const priceObj of prices) {
         const existingRecord = await SpotPricing.findOne({
             where: {
                 name: `${instanceTypeObj.name}-${instanceTypeObj.category}`,
-                date: today,
-                regionCategory: `GCP-${region}`
+                regionCategory: `GCP-${region}`,
+                date: today
             }
         });
 
         if (existingRecord) {
-            await existingRecord.update({ price: priceObj.price });
+            await existingRecord.update({ price: priceObj.price, timestamp: new Date() });
         } else {
             await SpotPricing.create({
                 name: `${instanceTypeObj.name}-${instanceTypeObj.category}`,
@@ -116,4 +122,8 @@ async function main() {
     console.log('GCP data saved successfully');
 }
 
-main();
+async function runGCPScript() {
+  await main();
+}
+
+module.exports = runGCPScript;

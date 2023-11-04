@@ -39,44 +39,35 @@ async function fetchAWSSpotPrices(instanceType, region) {
 }
 
 async function insertIntoDB(dailyAverages, instanceTypeObj, region) {
-  for (const date in dailyAverages) {
-    const standardizedDate = new Date(date);
-    standardizedDate.setHours(9, 0, 0, 0);  // Set time to 9 AM
+  const currentTime = new Date();
 
+  for (const date in dailyAverages) {
+    const formattedDate = new Date(date);
+    formattedDate.setHours(0, 0, 0, 0);  
     const existingRecord = await SpotPricing.findOne({
-      where: {
-        name: `${instanceTypeObj.name}-${instanceTypeObj.category}`,
-        date: standardizedDate,
-        regionCategory: `AWS-${region}`
-      }
+        where: {
+            name: `${instanceTypeObj.name}-${instanceTypeObj.category}`,
+            regionCategory: `AWS-${region}`,
+            date: formattedDate
+        }
     });
 
-    const today = new Date();
-    today.setHours(9, 0, 0, 0);  // Set time to 9 AM
-    const todayStr = today.toISOString().split('T')[0];
-    const dateStr = standardizedDate.toISOString().split('T')[0];
-
-    if (existingRecord && dateStr !== todayStr) {
-      continue;
-    }
-
-    const price = dailyAverages[date];
-
-    if (existingRecord && dateStr === todayStr) {
-      await existingRecord.update({ price: price });
+    if (existingRecord) {
+        await existingRecord.update({ price: dailyAverages[date], timestamp: currentTime });
     } else {
-      await SpotPricing.create({
-        name: `${instanceTypeObj.name}-${instanceTypeObj.category}`,
-        regionCategory: `AWS-${region}`,
-        date: standardizedDate,
-        price: price,
-        timestamp: new Date(),
-        grouping: instanceTypeObj.grouping,
-        providerID: 'AWS'
-      });
+        await SpotPricing.create({
+            name: `${instanceTypeObj.name}-${instanceTypeObj.category}`,
+            regionCategory: `AWS-${region}`,
+            date: formattedDate,
+            price: dailyAverages[date],
+            timestamp: currentTime,
+            grouping: instanceTypeObj.grouping,
+            providerID: 'AWS'
+        });
     }
   }
 }
+
 
 async function calculateDailyAverage(instanceTypeObj, region) {
   try {

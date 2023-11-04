@@ -15,7 +15,6 @@ async function fetchData() {
   };
 }
 
-
 async function fetchAlibabaSpotPrices(instanceType, region) {
     const regionData = await Region.findOne({ where: { providerID: 'ALB', name: region } });
     if (!regionData) {
@@ -31,14 +30,9 @@ async function fetchAlibabaSpotPrices(instanceType, region) {
         opts: { timeout: 10000 }
     });
 
-    const endTime = new Date(); // Today's date
-    endTime.setUTCHours(9, 0, 0, 0); // Set to 9 AM UTC
-    if (new Date() < endTime) {
-      // If the current time is before 9 AM UTC, subtract a day.
-      endTime.setDate(endTime.getDate() - 1);
-    }
+    const endTime = new Date(); 
     const startTime = new Date(endTime);
-    startTime.setDate(startTime.getDate() - 1); // Set to one day before the end time
+    startTime.setDate(startTime.getDate() - 1); 
 
     try {
       const params = {
@@ -57,51 +51,33 @@ async function fetchAlibabaSpotPrices(instanceType, region) {
     }
 }
 
-async function insertIntoDB(dailyAverages, instanceTypeObj, region) {
-    const today = new Date();
-    today.setHours(9, 0, 0, 0);  // Set time to 9 AM
+async function insertIntoDB(prices, instanceTypeObj, region) {
+    const currentTime = new Date();
 
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);  // Set date to yesterday
-    const formattedYesterday = yesterday.toISOString().split('T')[0];
-
-    const relevantDates = [today.toISOString().split('T')[0], formattedYesterday];
-
-    for (const date in dailyAverages) {
-        if (!relevantDates.includes(date)) {
-            continue;
-        }
-
-        const formattedDate = new Date(date);
-        formattedDate.setHours(9, 0, 0, 0);  // Set time to 9 AM
-
+    for (const [date, price] of Object.entries(prices)) {
         const existingRecord = await SpotPricing.findOne({
             where: {
                 name: `${instanceTypeObj.name}-${instanceTypeObj.category}`,
-                date: formattedDate,
-                regionCategory: `ALB-${region}`
+                regionCategory: `ALB-${region}`,
+                date: new Date(date)
             }
         });
 
-        const price = dailyAverages[date];
-
         if (existingRecord) {
-            await existingRecord.update({ price: price, date: formattedDate });
+            await existingRecord.update({ price, timestamp: currentTime });
         } else {
             await SpotPricing.create({
                 name: `${instanceTypeObj.name}-${instanceTypeObj.category}`,
                 regionCategory: `ALB-${region}`,
-                date: formattedDate,
-                price: price,
-                timestamp: new Date(),
+                date: new Date(date),
+                price,
+                timestamp: currentTime,
                 grouping: instanceTypeObj.grouping,
                 providerID: 'ALB'
             });
         }
     }
 }
-
-
 async function calculateDailyAverage(instanceTypeObj, region) {
   const spotPriceHistory = await fetchAlibabaSpotPrices(instanceTypeObj, region);
   if (spotPriceHistory.length === 0) {
@@ -112,7 +88,6 @@ async function calculateDailyAverage(instanceTypeObj, region) {
   const dailyAverages = {};
   spotPriceHistory.forEach(spotPrice => {
     const date = new Date(spotPrice.Timestamp);
-    date.setUTCHours(9, 0, 0, 0);  // Standardize to 12 AM UTC
     const standardizedDate = date.toISOString().split('T')[0];
     if (!pricesByDay[standardizedDate]) pricesByDay[standardizedDate] = [];
     pricesByDay[standardizedDate].push(parseFloat(spotPrice.SpotPrice));
