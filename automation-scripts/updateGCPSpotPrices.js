@@ -101,7 +101,7 @@ async function insertIntoDB(data) {
                     date: today,
                     price: entry.price,
                     timestamp: new Date(),
-                    grouping: instanceTypeObj.grouping,  // Use grouping from database
+                    grouping: instanceTypeObj.grouping, 
                     providerID: 'GCP'
                 });
             }
