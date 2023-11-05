@@ -46,6 +46,7 @@ async function fetchGCPSpotPrices(authClient) {
     const prices = [];
     items.forEach(item => {
         if (specificSkus.includes(item.skuId)) {
+            const instanceType = item.description.split(' ')[0];
             const pricingInfo = item.pricingInfo;
             pricingInfo.forEach(price => {
                 const pricingExpression = price.pricingExpression;
@@ -56,11 +57,12 @@ async function fetchGCPSpotPrices(authClient) {
                     const units = unitPrice.units;
                     const nanos = unitPrice.nanos;
                     prices.push({
+                        instanceType,
                         description: item.description,
                         price: parseFloat(`${units}.${nanos}`),
                         currency: currencyCode,
                         sku: item.skuId,
-                        region: item.serviceRegions[0]  // Assumes each SKU is associated with a single region
+                        region: item.serviceRegions[0]
                     });
                 });
             });
@@ -68,32 +70,41 @@ async function fetchGCPSpotPrices(authClient) {
     });
     return prices;
 }
-
 async function insertIntoDB(data) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);  // Set time to midnight for consistent comparison
 
     for (const entry of data) {
-        const existingRecord = await SpotPricing.findOne({
-            where: {
-                name: entry.description,
-                regionCategory: `GCP-${entry.region}`,
-                date: today
-            }
+        const instanceTypeObj = await InstanceType.findOne({
+            where: { name: entry.instanceType }  // Use instanceType for lookup
         });
 
-        if (existingRecord) {
-            await existingRecord.update({ price: entry.price, timestamp: new Date() });
-        } else {
-            await SpotPricing.create({
-                name: entry.description,
-                regionCategory: `GCP-${entry.region}`,
-                date: today,
-                price: entry.price,
-                timestamp: new Date(),
-                grouping: entry.sku,  // SKU is used for grouping in this script
-                providerID: 'GCP'
+        const regionObj = await Region.findOne({
+            where: { name: entry.region }
+        });
+
+        if (instanceTypeObj && regionObj) {
+            const existingRecord = await SpotPricing.findOne({
+                where: {
+                    name: entry.description,
+                    regionCategory: `GCP-${regionObj.regionCategory}`,
+                    date: today
+                }
             });
+
+            if (existingRecord) {
+                await existingRecord.update({ price: entry.price, timestamp: new Date() });
+            } else {
+                await SpotPricing.create({
+                    name: entry.description,
+                    regionCategory: `GCP-${regionObj.regionCategory}`,
+                    date: today,
+                    price: entry.price,
+                    timestamp: new Date(),
+                    grouping: instanceTypeObj.grouping,  // Use grouping from database
+                    providerID: 'GCP'
+                });
+            }
         }
     }
 }
