@@ -72,7 +72,7 @@ async function fetchGCPSpotPrices(authClient, instanceType, region) {
 async function insertIntoDB(dailyAverages, instanceTypeObj, region) {
     for (const date in dailyAverages) {
         const standardizedDate = new Date(date);
-        standardizedDate.setHours(9, 0, 0, 0);  // Set time to 9 AM
+        standardizedDate.setHours(0, 0, 0, 0);  // Set time to 0 AM
 
         const existingRecord = await SpotPricing.findOne({
             where: {
@@ -101,8 +101,9 @@ async function insertIntoDB(dailyAverages, instanceTypeObj, region) {
 }
 
 // Function to calculate daily average prices
+// Function to calculate daily average prices
 async function calculateDailyAverage(instanceTypeObj, region, authClient) {
-    const spotPriceHistory = await fetchGCPSpotPrices(authClient);  // Assuming this function fetches all necessary data
+    const spotPriceHistory = await fetchGCPSpotPrices(authClient, instanceTypeObj, region);
 
     if (spotPriceHistory.length === 0) {
         console.log(`No prices available for ${instanceTypeObj.name} in ${region}`);
@@ -113,13 +114,18 @@ async function calculateDailyAverage(instanceTypeObj, region, authClient) {
     const dailyAverages = {};
 
     spotPriceHistory.forEach(spotPrice => {
-        const date = new Date(spotPrice.timestamp);  // Assuming each spotPrice object has a timestamp property
+        // Validate the timestamp is a valid date
+        const date = new Date(spotPrice.timestamp);
+        if (isNaN(date)) {
+            console.log('Invalid timestamp for spot price:', spotPrice);
+            return;
+        }
         date.setUTCHours(9, 0, 0, 0);  // Standardize to 9 AM UTC
         const standardizedDate = date.toISOString().split('T')[0];
         if (!pricesByDay[standardizedDate]) {
             pricesByDay[standardizedDate] = [];
         }
-        pricesByDay[standardizedDate].push(parseFloat(spotPrice.price));  // Assuming each spotPrice object has a price property
+        pricesByDay[standardizedDate].push(parseFloat(spotPrice.price));
     });
 
     for (const date in pricesByDay) {

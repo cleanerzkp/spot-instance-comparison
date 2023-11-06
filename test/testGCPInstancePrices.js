@@ -27,8 +27,8 @@ async function fetchGCPSpotPrices(authClient) {
     const items = response.data.skus;
     const specificSkus = [
       'D276-7CD3-D61E', // US East (Virginia)
-        '0CB5-FB1A-2C2A'
-        // ... your SKUs
+      '0CB5-FB1A-2C2A',
+        
     ];
 
     const prices = [];

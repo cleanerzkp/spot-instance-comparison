@@ -22,7 +22,6 @@ async function fetchRecentPrices(instanceType, region) {
     return [];
   }
 }
-
 async function checkPopularInstancesAndRegions() {
   const instancePopularity = {};
   const regionPopularity = {};
@@ -32,7 +31,17 @@ async function checkPopularInstancesAndRegions() {
       const recentPrices = await fetchRecentPrices(instanceType, region);
       if (recentPrices.length > 0) {
         instancePopularity[instanceType] = (instancePopularity[instanceType] || 0) + recentPrices.length;
-        regionPopularity[region] = (regionPopularity[region] || 0) + recentPrices.length;
+
+        // Check if the region already exists in regionPopularity, and initialize if not
+        if (!regionPopularity[region]) {
+          regionPopularity[region] = {
+            totalInstances: 0,
+            supportedInstanceTypes: [],
+          };
+        }
+
+        regionPopularity[region].totalInstances += recentPrices.length;
+        regionPopularity[region].supportedInstanceTypes.push(instanceType);
       }
     }
   }
@@ -40,5 +49,7 @@ async function checkPopularInstancesAndRegions() {
   console.log('Instance Popularity:', instancePopularity);
   console.log('Region Popularity:', regionPopularity);
 }
+
+
 
 checkPopularInstancesAndRegions();
