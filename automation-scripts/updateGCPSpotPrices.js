@@ -8,9 +8,9 @@ const specificSkus = [
     // c2-standard-4 SKUs
     'D276-7CD3-D61E', // US East (Virginia)
     '0CB5-FB1A-2C2A', // US West (Los Angeles)
-    'AB94-9F50-2B3C', // EU Central (Warsaw)
-    'DDBE-FFEB-7E00', // Near East (Israel)
-    'DEED-126A-11E2', // East India (Delhi)
+    '955B-B00E-ED15', // EU Central (Warsaw)
+    '41F4-F6BE-4AF2', // Near East (Israel)
+    '210D-FDFA-448C', // East India (Delhi)
     
     // e2-standard-4 SKUs
     'D5C5-E209-22D3', // US East (Virginia)
@@ -18,7 +18,6 @@ const specificSkus = [
     '9787-23D2-3EA1', // EU Central (Warsaw)
     '9876-7A20-67F0', // Near East (Israel)
     '0B33-C7D0-C5A9'  // East India (Delhi)
-    //https://cloud.google.com/skus/sku-groups/compute-engine-flexible-cud-eligible-skus
 ];
 
 async function authenticate() {
@@ -42,34 +41,31 @@ async function fetchGCPSpotPrices(authClient) {
             Authorization: `Bearer ${accessToken.token}`,
         },
     });
-
-    // Only keep items that match the specific SKUs we're interested in.
-    const filteredItems = response.data.skus.filter(item => specificSkus.includes(item.skuId));
-
+    
+    const items = response.data.skus;
     const prices = [];
-    filteredItems.forEach(item => {
-        console.log(`Processing SKU: ${item.skuId}`);
-        const pricingInfo = item.pricingInfo;
-        pricingInfo.forEach(price => {
-            const pricingExpression = price.pricingExpression;
-            const tieredRates = pricingExpression.tieredRates;
-            tieredRates.forEach(rate => {
-                const unitPrice = rate.unitPrice;
-                const currencyCode = unitPrice.currencyCode;
-                const units = unitPrice.units;
-                const nanos = unitPrice.nanos;
-                const priceEntry = {
-                    description: item.description,
-                    price: parseFloat(`${units}.${nanos}`),
-                    currency: currencyCode,
-                    sku: item.skuId,
-                    region: item.serviceRegions[0]
-                };
-                prices.push(priceEntry);
+    items.forEach(item => {
+        if (specificSkus.includes(item.skuId)) {
+            const pricingInfo = item.pricingInfo;
+            pricingInfo.forEach(price => {
+                const pricingExpression = price.pricingExpression;
+                const tieredRates = pricingExpression.tieredRates;
+                tieredRates.forEach(rate => {
+                    const unitPrice = rate.unitPrice;
+                    const currencyCode = unitPrice.currencyCode;
+                    const units = unitPrice.units;
+                    const nanos = unitPrice.nanos;
+                    prices.push({
+                        description: item.description,
+                        price: parseFloat(`${units}.${nanos}`),
+                        currency: currencyCode,
+                        sku: item.skuId,
+                        region: item.serviceRegions[0]  // Assumes each SKU is associated with a single region
+                    });
+                });
             });
-        });
+        }
     });
-
     return prices;
 }
 
@@ -78,9 +74,6 @@ async function insertIntoDB(data) {
     today.setHours(0, 0, 0, 0);  // Set time to midnight for consistent comparison
 
     for (const entry of data) {
-        // Log the data being processed for insertion
-        console.log(`Processing for DB insertion:`, entry);
-
         const existingRecord = await SpotPricing.findOne({
             where: {
                 name: entry.description,
@@ -90,17 +83,15 @@ async function insertIntoDB(data) {
         });
 
         if (existingRecord) {
-            console.log(`Updating existing record for ${entry.description} in ${entry.region}`);
             await existingRecord.update({ price: entry.price, timestamp: new Date() });
         } else {
-            console.log(`Inserting new record for ${entry.description} in ${entry.region}`);
             await SpotPricing.create({
                 name: entry.description,
                 regionCategory: `GCP-${entry.region}`,
                 date: today,
                 price: entry.price,
                 timestamp: new Date(),
-                grouping: entry.sku,
+                grouping: entry.sku,  // SKU is used for grouping in this script
                 providerID: 'GCP'
             });
         }
@@ -108,17 +99,12 @@ async function insertIntoDB(data) {
 }
 
 async function main() {
-    try {
-        const authClient = await authenticate();
-        const data = await fetchGCPSpotPrices(authClient);
-        if (data && data.length > 0) {
-            await insertIntoDB(data);
-        }
-        console.log('GCP data saved successfully');
-    } catch (error) {
-        // Log any errors that occur during the execution
-        console.error('Error during script execution', error);
+    const authClient = await authenticate();
+    const data = await fetchGCPSpotPrices(authClient);
+    if (data && data.length > 0) {
+        await insertIntoDB(data);
     }
+    console.log('GCP data saved successfully');
 }
 
 main();

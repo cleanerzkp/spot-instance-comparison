@@ -4,117 +4,163 @@ const path = require('path');
 const db = require('../models');
 const { SpotPricing, InstanceType, Region } = db;
 
-const specificSkus = [
-    // c2-standard-4 SKUs
-    'D276-7CD3-D61E', // US East (Virginia)
-    '0CB5-FB1A-2C2A', // US West (Los Angeles)
-    '955B-B00E-ED15', // EU Central (Warsaw)
-    '41F4-F6BE-4AF2', // Near East (Israel)
-    '210D-FDFA-448C', // East India (Delhi)
-
-];
-
+// Authentication with Google Cloud
 async function authenticate() {
-    const credentialsPath = path.resolve(__dirname, '../GetSpot-Service-Account.json');
-    const auth = new GoogleAuth({
-        keyFilename: credentialsPath,
-        scopes: ['https://www.googleapis.com/auth/cloud-platform'],
-    });
-    const authClient = await auth.getClient();
-    return authClient;
+  const credentialsPath = path.resolve(__dirname, '../GetSpot-Service-Account.json');
+  const auth = new GoogleAuth({
+    keyFilename: credentialsPath,
+    scopes: ['https://www.googleapis.com/auth/cloud-platform'],
+  });
+  const authClient = await auth.getClient();
+  return authClient;
 }
 
-async function fetchGCPSpotPrices(authClient) {
-    const projectId = 'getspot-402212'; 
+// Fetch instance types and regions from the database
+async function fetchData() {
+  const instanceTypes = await InstanceType.findAll({ where: { providerID: 'GCP' } });
+  const regions = await Region.findAll({ where: { providerID: 'GCP' } });
+  return {
+    instanceTypes: instanceTypes.map(it => ({ name: it.name, category: it.category, grouping: it.grouping })),
+    regions: regions.map(r => r.standardizedRegion)
+  };
+}
+
+async function fetchGCPSpotPrices(authClient, instanceTypes, regions) {
+    const projectId = 'getspot-402212';
     const serviceId = '6F81-5844-456A';
     const url = `https://cloudbilling.googleapis.com/v1/services/${serviceId}/skus`;
-
     const accessToken = await authClient.getAccessToken();
+
+    // Map each SKU to its region and instance type
+    const skuToRegionAndType = {
+        'D276-7CD3-D61E': { region: 'us-east1', type: 'c2-standard-4' },
+        '0CB5-FB1A-2C2A': { region: 'us-west1', type: 'c2-standard-4' },
+        '955B-B00E-ED15': { region: 'europe-central1', type: 'c2-standard-4' },
+        '41F4-F6BE-4AF2': { region: 'middleeast-north1', type: 'c2-standard-4' },
+        '210D-FDFA-448C': { region: 'asia-south1', type: 'c2-standard-4' },
+        'D5C5-E209-22D3': { region: 'us-east1', type: 'e2-standard-4' },
+        '00FD-B743-831B': { region: 'us-west1', type: 'e2-standard-4' },
+        '9787-23D2-3EA1': { region: 'europe-central1', type: 'e2-standard-4' },
+        '9876-7A20-67F0': { region: 'middleeast-north1', type: 'e2-standard-4' },
+        '0B33-C7D0-C5A9': { region: 'asia-south1', type: 'e2-standard-4' }
+        // ... Add any additional SKUs here
+    };
+
     const response = await axios.get(url, {
         headers: {
             Authorization: `Bearer ${accessToken.token}`,
-        },
-    });
-    
-    const items = response.data.skus;
-    const prices = [];
-    items.forEach(item => {
-        // Enhanced logging to check if the SKUs are being fetched
-        console.log(`Fetched SKU: ${item.skuId}`);
-
-        if (specificSkus.includes(item.skuId)) {
-            const pricingInfo = item.pricingInfo;
-            pricingInfo.forEach(price => {
-                const pricingExpression = price.pricingExpression;
-                const tieredRates = pricingExpression.tieredRates;
-                tieredRates.forEach(rate => {
-                    const unitPrice = rate.unitPrice;
-                    const currencyCode = unitPrice.currencyCode;
-                    const units = unitPrice.units;
-                    const nanos = unitPrice.nanos;
-                    const priceEntry = {
-                        description: item.description,
-                        price: parseFloat(`${units}.${nanos}`),
-                        currency: currencyCode,
-                        sku: item.skuId,
-                        region: item.serviceRegions[0]
-                    };
-                    // Log the price entry to be added
-                    console.log(`Adding Price Entry:`, priceEntry);
-                    prices.push(priceEntry);
-                });
-            });
         }
     });
-    return prices;
+
+    const items = response.data.skus;
+// Fetch prices for each SKU
+const prices = [];
+for (const specificSku of Object.keys(skuToRegionAndType)) {
+    const skuDetails = skuToRegionAndType[specificSku];
+    const response = await axios.get(`${url}?key=${specificSku}`, {
+        headers: {
+            Authorization: `Bearer ${accessToken.token}`,
+        }
+    });
+    const item = response.data.skus[0]; // Assuming each SKU ID returns a single SKU item
+    if (item && skuDetails && item.serviceRegions.includes(skuDetails.region)) {
+        const pricingInfo = item.pricingInfo[0]; // Assuming we take the first pricing info
+        const pricingExpression = pricingInfo.pricingExpression;
+        const tieredRates = pricingExpression.tieredRates[0]; // Assuming we take the first tiered rate
+        const unitPrice = tieredRates.unitPrice;
+        const pricePerUnit = `${unitPrice.units}.${unitPrice.nanos}`;
+        prices.push({
+            instanceType: skuDetails.type,
+            region: skuDetails.region,
+            price: parseFloat(pricePerUnit),
+            currency: unitPrice.currencyCode,
+            timestamp: new Date().toISOString()
+        });
+    }
 }
-
-async function insertIntoDB(data) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);  // Set time to midnight for consistent comparison
-
-    for (const entry of data) {
-        // Log the data being processed for insertion
-        console.log(`Processing for DB insertion:`, entry);
+return prices;
+}
+async function insertIntoDB(dailyAverages, instanceTypeObj, region) {
+    for (const date in dailyAverages) {
+        const standardizedDate = new Date(date);
+        standardizedDate.setUTCHours(0, 0, 0, 0); // Set time to midnight UTC
 
         const existingRecord = await SpotPricing.findOne({
             where: {
-                name: entry.description,
-                regionCategory: `GCP-${entry.region}`,
-                date: today
+                name: `${instanceTypeObj.name}-${instanceTypeObj.category}`,
+                date: standardizedDate,
+                regionCategory: `GCP-${region}`
             }
         });
 
+        const price = dailyAverages[date];
+
         if (existingRecord) {
-            console.log(`Updating existing record for ${entry.description} in ${entry.region}`);
-            await existingRecord.update({ price: entry.price, timestamp: new Date() });
+            await existingRecord.update({ price: price, date: standardizedDate });
         } else {
-            console.log(`Inserting new record for ${entry.description} in ${entry.region}`);
             await SpotPricing.create({
-                name: entry.description,
-                regionCategory: `GCP-${entry.region}`,
-                date: today,
-                price: entry.price,
+                name: `${instanceTypeObj.name}-${instanceTypeObj.category}`,
+                regionCategory: `GCP-${region}`,
+                date: standardizedDate,
+                price: price,
                 timestamp: new Date(),
-                grouping: entry.sku,
+                grouping: instanceTypeObj.grouping,
                 providerID: 'GCP'
             });
         }
     }
 }
 
-async function main() {
-    try {
-        const authClient = await authenticate();
-        const data = await fetchGCPSpotPrices(authClient);
-        if (data && data.length > 0) {
-            await insertIntoDB(data);
-        }
-        console.log('GCP data saved successfully');
-    } catch (error) {
-        // Log any errors that occur during the execution
-        console.error('Error during script execution', error);
+async function calculateDailyAverage(instanceTypeObj, region, authClient) {
+    const spotPriceHistory = await fetchGCPSpotPrices(authClient, instanceTypeObj.name, region);
+
+    if (spotPriceHistory.length === 0) {
+        console.log(`No prices available for ${instanceTypeObj.name} in ${region}`);
+        return;
     }
+
+    const pricesByDay = {};
+    const dailyAverages = {};
+
+    spotPriceHistory.forEach(spotPrice => {
+        // Check if the timestamp is defined and is a valid date
+        if (!spotPrice.timestamp || isNaN(Date.parse(spotPrice.timestamp))) {
+            console.log(`Invalid or missing timestamp for price entry: ${spotPrice.description}`);
+            return;
+        }
+
+        const date = new Date(spotPrice.timestamp);
+        date.setUTCHours(0, 0, 0, 0); // Standardize to midnight UTC
+        const standardizedDate = date.toISOString().split('T')[0];
+
+       
+
+ if (!pricesByDay[standardizedDate]) {
+            pricesByDay[standardizedDate] = [];
+        }
+        pricesByDay[standardizedDate].push(parseFloat(spotPrice.price));
+    });
+
+    for (const date in pricesByDay) {
+        const prices = pricesByDay[date];
+        const sum = prices.reduce((acc, price) => acc + price, 0);
+        const average = sum / prices.length;
+        dailyAverages[date] = average;
+    }
+
+    await insertIntoDB(dailyAverages, instanceTypeObj, region);
+}
+
+async function main() {
+    const authClient = await authenticate();
+    const data = await fetchData();
+
+    for (const instanceTypeObj of data.instanceTypes) {
+        for (const region of data.regions) {
+            await calculateDailyAverage(instanceTypeObj, region, authClient);
+        }
+    }
+    console.log('Data processing complete.');
 }
 
 main();
