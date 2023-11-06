@@ -4,156 +4,107 @@ const path = require('path');
 const db = require('../models');
 const { SpotPricing, InstanceType, Region } = db;
 
-// Authentication with Google Cloud
+const specificSkus = [
+    // c2-standard-4 SKUs
+    'D276-7CD3-D61E', // US East (Virginia)
+    '0CB5-FB1A-2C2A', // US West (Los Angeles)
+    '955B-B00E-ED15', // EU Central (Warsaw)
+    '41F4-F6BE-4AF2', // Near East (Israel)
+    '210D-FDFA-448C', // East India (Delhi)
+    
+    // e2-standard-4 SKUs
+    'D5C5-E209-22D3', // US East (Virginia)
+    '00FD-B743-831B', // US West (Los Angeles)
+    '9787-23D2-3EA1', // EU Central (Warsaw)
+    '9876-7A20-67F0', // Near East (Israel)
+    '0B33-C7D0-C5A9'  // East India (Delhi)
+];
+
 async function authenticate() {
-  const credentialsPath = path.resolve(__dirname, '../GetSpot-Service-Account.json');
-  const auth = new GoogleAuth({
-    keyFilename: credentialsPath,
-    scopes: ['https://www.googleapis.com/auth/cloud-platform'],
-  });
-  const authClient = await auth.getClient();
-  return authClient;
+    const credentialsPath = path.resolve(__dirname, '../GetSpot-Service-Account.json');
+    const auth = new GoogleAuth({
+        keyFilename: credentialsPath,
+        scopes: ['https://www.googleapis.com/auth/cloud-platform'],
+    });
+    const authClient = await auth.getClient();
+    return authClient;
 }
 
-// Fetch instance types and regions from the database
-async function fetchData() {
-  const instanceTypes = await InstanceType.findAll({ where: { providerID: 'GCP' } });
-  const regions = await Region.findAll({ where: { providerID: 'GCP' } });
-  return {
-    instanceTypes: instanceTypes.map(it => ({ name: it.name, category: it.category, grouping: it.grouping })),
-    regions: regions.map(r => r.standardizedRegion)
-  };
-}
-
-async function fetchGCPSpotPrices(authClient, skuToRegionAndType) {
-    const projectId = 'getspot-402212';
+async function fetchGCPSpotPrices(authClient) {
+    const projectId = 'getspot-402212'; 
     const serviceId = '6F81-5844-456A';
     const url = `https://cloudbilling.googleapis.com/v1/services/${serviceId}/skus`;
-    const accessToken = await authClient.getAccessToken();
 
+    const accessToken = await authClient.getAccessToken();
     const response = await axios.get(url, {
         headers: {
             Authorization: `Bearer ${accessToken.token}`,
+        },
+    });
+    
+    const items = response.data.skus;
+    const prices = [];
+    items.forEach(item => {
+        if (specificSkus.includes(item.skuId)) {
+            const pricingInfo = item.pricingInfo;
+            pricingInfo.forEach(price => {
+                const pricingExpression = price.pricingExpression;
+                const tieredRates = pricingExpression.tieredRates;
+                tieredRates.forEach(rate => {
+                    const unitPrice = rate.unitPrice;
+                    const currencyCode = unitPrice.currencyCode;
+                    const units = unitPrice.units;
+                    const nanos = unitPrice.nanos;
+                    prices.push({
+                        description: item.description,
+                        price: parseFloat(`${units}.${nanos}`),
+                        currency: currencyCode,
+                        sku: item.skuId,
+                        region: item.serviceRegions[0]  // Assumes each SKU is associated with a single region
+                    });
+                });
+            });
         }
     });
-
-    const items = response.data.skus;
-
-    // Filter the SKUs for the ones we're interested in
-    const filteredItems = items.filter(item => Object.keys(skuToRegionAndType).includes(item.name));
-
-    // Fetch prices for each filtered SKU
-    const prices = [];
-    for (const item of filteredItems) {
-        const pricingInfo = item.pricingInfo[0]; // Assuming we take the first pricing info
-        const pricingExpression = pricingInfo.pricingExpression;
-        const tieredRates = pricingExpression.tieredRates[0]; // Assuming we take the first tiered rate
-        const unitPrice = tieredRates.unitPrice;
-        const pricePerUnit = `${unitPrice.units}.${unitPrice.nanos}`;
-        const skuDetails = skuToRegionAndType[item.name];
-        prices.push({
-            instanceType: skuDetails.type,
-            region: skuDetails.region,
-            price: parseFloat(pricePerUnit),
-            currency: unitPrice.currencyCode,
-            timestamp: new Date().toISOString()
-        });
-    }
     return prices;
 }
 
-async function insertIntoDB(dailyAverages, instanceTypeObj, region) {
-    for (const date in dailyAverages) {
-        const standardizedDate = new Date(date);
-        standardizedDate.setUTCHours(0, 0, 0, 0); // Set time to midnight UTC
+async function insertIntoDB(data) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);  // Set time to midnight for consistent comparison
 
+    for (const entry of data) {
         const existingRecord = await SpotPricing.findOne({
             where: {
-                name: `${instanceTypeObj.name}-${instanceTypeObj.category}`,
-                date: standardizedDate,
-                regionCategory: `GCP-${region}`
+                name: entry.description,
+                regionCategory: `GCP-${entry.region}`,
+                date: today
             }
         });
 
-        const price = dailyAverages[date];
-
         if (existingRecord) {
-            await existingRecord.update({ price: price, date: standardizedDate });
+            await existingRecord.update({ price: entry.price, timestamp: new Date() });
         } else {
             await SpotPricing.create({
-                name: `${instanceTypeObj.name}-${instanceTypeObj.category}`,
-                regionCategory: `GCP-${region}`,
-                date: standardizedDate,
-                price: price,
+                name: entry.description,
+                regionCategory: `GCP-${entry.region}`,
+                date: today,
+                price: entry.price,
                 timestamp: new Date(),
-                grouping: instanceTypeObj.grouping,
+                grouping: entry.sku,  // SKU is used for grouping in this script
                 providerID: 'GCP'
             });
         }
     }
 }
 
-async function calculateDailyAverage(instanceTypeObj, region, authClient) {
-    const skuToRegionAndType = {
-        'D276-7CD3-D61E': { region: 'us-east1', type: 'c2-standard-4' },
-        '0CB5-FB1A-2C2A': { region: 'us-west1', type: 'c2-standard-4' },
-        '955B-B00E-ED15': { region: 'europe-central1', type: 'c2-standard-4' },
-        '41F4-F6BE-4AF2': { region: 'middleeast-north1', type: 'c2-standard-4' },
-        '210D-FDFA-448C': { region: 'asia-south1', type: 'c2-standard-4' },
-        'D5C5-E209-22D3': { region: 'us-east1', type: 'e2-standard-4' },
-        '00FD-B743-831B': { region: 'us-west1', type: 'e2-standard-4' },
-        '9787-23D2-3EA1': { region: 'europe-central1', type: 'e2-standard-4' },
-        '9876-7A20-67F0': { region: 'middleeast-north1', type: 'e2-standard-4' },
-        '0B33-C7D0-C5A9': { region: 'asia-south1', type: 'e2-standard-4' }
-    };
-
-    const spotPriceHistory = await fetchGCPSpotPrices(authClient, skuToRegionAndType);
-
-    if (spotPriceHistory.length === 0) {
-        console.log(`No prices available for ${instanceTypeObj.name} in ${region}`);
-        return;
-    }
-
-    const pricesByDay = {};
-    const dailyAverages = {};
-
-    spotPriceHistory.forEach(spotPrice => {
-        // Check if the timestamp is defined and is a valid date
-        if (!spotPrice.timestamp || isNaN(Date.parse(spotPrice.timestamp))) {
-            console.log(`Invalid or missing timestamp for price entry: ${spotPrice.description}`);
-            return;
-        }
-
-        const date = new Date(spotPrice.timestamp);
-        date.setUTCHours(0, 0, 0, 0); // Standardize to midnight UTC
-        const standardizedDate = date.toISOString().split('T')[0];
-
-        if (!pricesByDay[standardizedDate]) {
-            pricesByDay[standardizedDate] = [];
-        }
-        pricesByDay[standardizedDate].push(parseFloat(spotPrice.price));
-    });
-
-    for (const date in pricesByDay) {
-        const prices = pricesByDay[date];
-        const sum = prices.reduce((acc, price) => acc + price, 0);
-        const average = sum / prices.length;
-        dailyAverages[date] = average;
-    }
-
-    await insertIntoDB(dailyAverages, instanceTypeObj, region);
-}
-
 async function main() {
     const authClient = await authenticate();
-    const data = await fetchData();
-
-    for (const instanceTypeObj of data.instanceTypes) {
-        for (const region of data.regions) {
-            await calculateDailyAverage(instanceTypeObj, region, authClient);
-        }
+    const data = await fetchGCPSpotPrices(authClient);
+    if (data && data.length > 0) {
+        await insertIntoDB(data);
     }
-    console.log('Data processing complete.');
+    console.log('GCP data saved successfully');
 }
 
 main();
