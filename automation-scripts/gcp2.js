@@ -8,17 +8,10 @@ const specificSkus = [
     // c2-standard-4 SKUs
     'D276-7CD3-D61E', // US East (Virginia)
     '0CB5-FB1A-2C2A', // US West (Los Angeles)
-    'AB94-9F50-2B3C', // EU Central (Warsaw)
-    'DDBE-FFEB-7E00', // Near East (Israel)
-    'DEED-126A-11E2', // East India (Delhi)
-    
-    // e2-standard-4 SKUs
-    'D5C5-E209-22D3', // US East (Virginia)
-    '00FD-B743-831B', // US West (Los Angeles)
-    '9787-23D2-3EA1', // EU Central (Warsaw)
-    '9876-7A20-67F0', // Near East (Israel)
-    '0B33-C7D0-C5A9'  // East India (Delhi)
-    //https://cloud.google.com/skus/sku-groups/compute-engine-flexible-cud-eligible-skus
+    '955B-B00E-ED15', // EU Central (Warsaw)
+    '41F4-F6BE-4AF2', // Near East (Israel)
+    '210D-FDFA-448C', // East India (Delhi)
+
 ];
 
 async function authenticate() {
@@ -42,34 +35,37 @@ async function fetchGCPSpotPrices(authClient) {
             Authorization: `Bearer ${accessToken.token}`,
         },
     });
-
-    // Only keep items that match the specific SKUs we're interested in.
-    const filteredItems = response.data.skus.filter(item => specificSkus.includes(item.skuId));
-
+    
+    const items = response.data.skus;
     const prices = [];
-    filteredItems.forEach(item => {
-        console.log(`Processing SKU: ${item.skuId}`);
-        const pricingInfo = item.pricingInfo;
-        pricingInfo.forEach(price => {
-            const pricingExpression = price.pricingExpression;
-            const tieredRates = pricingExpression.tieredRates;
-            tieredRates.forEach(rate => {
-                const unitPrice = rate.unitPrice;
-                const currencyCode = unitPrice.currencyCode;
-                const units = unitPrice.units;
-                const nanos = unitPrice.nanos;
-                const priceEntry = {
-                    description: item.description,
-                    price: parseFloat(`${units}.${nanos}`),
-                    currency: currencyCode,
-                    sku: item.skuId,
-                    region: item.serviceRegions[0]
-                };
-                prices.push(priceEntry);
-            });
-        });
-    });
+    items.forEach(item => {
+        // Enhanced logging to check if the SKUs are being fetched
+        console.log(`Fetched SKU: ${item.skuId}`);
 
+        if (specificSkus.includes(item.skuId)) {
+            const pricingInfo = item.pricingInfo;
+            pricingInfo.forEach(price => {
+                const pricingExpression = price.pricingExpression;
+                const tieredRates = pricingExpression.tieredRates;
+                tieredRates.forEach(rate => {
+                    const unitPrice = rate.unitPrice;
+                    const currencyCode = unitPrice.currencyCode;
+                    const units = unitPrice.units;
+                    const nanos = unitPrice.nanos;
+                    const priceEntry = {
+                        description: item.description,
+                        price: parseFloat(`${units}.${nanos}`),
+                        currency: currencyCode,
+                        sku: item.skuId,
+                        region: item.serviceRegions[0]
+                    };
+                    // Log the price entry to be added
+                    console.log(`Adding Price Entry:`, priceEntry);
+                    prices.push(priceEntry);
+                });
+            });
+        }
+    });
     return prices;
 }
 
