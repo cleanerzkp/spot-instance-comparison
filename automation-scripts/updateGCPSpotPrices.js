@@ -85,16 +85,20 @@ async function insertIntoDB(data) {
     });
 
     for (const entry of data) {
+        // Extract the instance type from the description
+        const instanceType = entry.description.split(' ')[0];
+
         // Find the matching instance type and region for the GCP entry
-        const instanceTypeObj = instanceTypes.find(it => it.name === entry.description);
+        const instanceTypeObj = instanceTypes.find(it => it.name === instanceType);
         const regionObj = regions.find(r => r.name === entry.region);
 
         // Use instance type and region to create a grouping identifier
-        const grouping = instanceTypeObj ? `${instanceTypeObj.grouping}-${regionObj.grouping}` : 'unknown-grouping';
-
+        // If instance type or region is not found, use 'unknown-grouping'
+        const grouping = instanceTypeObj && regionObj ? `${instanceTypeObj.grouping}-${regionObj.grouping}` : 'unknown-grouping';
+        
         const existingRecord = await SpotPricing.findOne({
             where: {
-                name: entry.description,
+                name: instanceType,
                 regionCategory: `GCP-${entry.region}`,
                 date: today
             }
@@ -104,7 +108,7 @@ async function insertIntoDB(data) {
             await existingRecord.update({ price: entry.price, timestamp: new Date() });
         } else {
             await SpotPricing.create({
-                name: entry.description,
+                name: instanceType,
                 regionCategory: `GCP-${entry.region}`,
                 date: today,
                 price: entry.price,
