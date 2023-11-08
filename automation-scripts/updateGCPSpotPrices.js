@@ -6,7 +6,7 @@ const { SpotPricing, InstanceType, Region } = db;
 
 const skuToInstanceRegionMap = {
     // c2-standard-4 SKUs mapping
-    '9BD1-9DF4-DEBB': { instanceType: 'c2-standard-4', region: 'us-east1' },
+    '5E86-72F2-5688': { instanceType: 'c2-standard-4', region: 'us-east4' },
     '0CB5-FB1A-2C2A': { instanceType: 'c2-standard-4', region: 'us-west1' },
     '40DE-6073-970E': { instanceType: 'c2-standard-4', region: 'europe-central1' },
     '08F8-0A90-720E': { instanceType: 'c2-standard-4', region: 'middleeast-north1' },
@@ -17,10 +17,10 @@ const skuToInstanceRegionMap = {
     // e2-standard-4 SKUs mapping
     'D5C5-E209-22D3': { instanceType: 'e2-standard-4', region: 'us-east1' },
     '00FD-B743-831B': { instanceType: 'e2-standard-4', region: 'us-west1' },
-    'C921-088E-792A': { instanceType: 'e2-standard-4', region: 'europe-central1' },
+    '5D70-7762-2DE7': { instanceType: 'e2-standard-4', region: 'europe-central1' },
     '9876-7A20-67F0': { instanceType: 'e2-standard-4', region: 'middleeast-north1' },
-    '210D-FDFA-448C': { instanceType: 'e2-standard-4', region: 'asia-south1' },
-    //https://cloud.google.com/skus/sku-groups/compute-engine-flexible-cud-eligible-skus  for sku codes
+    '90AB-A7A8-F873': { instanceType: 'e2-standard-4', region: 'asia-south1' },
+    //https://cloud.google.com/skus/sku-groups/compute-engine-flexible-cud-eligible-skus  for specific sku codes
 
 };
 
