@@ -4,25 +4,21 @@ const path = require('path');
 const db = require('../models');
 const { SpotPricing, InstanceType, Region } = db;
 
-const specificSkus = [
-    // c2-standard-4 SKUs
-    '9BD1-9DF4-DEBB', // US East (Montreal)
-    '0CB5-FB1A-2C2A', // US West (Los Angeles)
-    '40DE-6073-970E', // EU Central (Frankfurt)
-    '08F8-0A90-720E', // Near East (Doha  -- Qatar)
-    '406A-AA4B-1013', // East India (Mumbai)
-   //https://gcloud-compute.com/c2-standard-4.html to see avaialiblity of regions/skus 
-
-    // e2-standard-4 SKUs
-    'D5C5-E209-22D3', // US East (Virginia)
-    '00FD-B743-831B', // US West (Los Angeles)
-    'C921-088E-792A', // EU Central (Frankfurt)
-    '9876-7A20-67F0', // Near East (Israel)
-    '210D-FDFA-448C	'  // East India (Delhi)
-
-    //https://cloud.google.com/skus/sku-groups/compute-engine-flexible-cud-eligible-skus  for sku codes
-    //
-];
+const skuToInstanceRegionMap = {
+    // c2-standard-4 SKUs mapping
+    '9BD1-9DF4-DEBB': { instanceType: 'c2-standard-4', region: 'us-east1' },
+    '0CB5-FB1A-2C2A': { instanceType: 'c2-standard-4', region: 'us-west1' },
+    '40DE-6073-970E': { instanceType: 'c2-standard-4', region: 'europe-central1' },
+    '08F8-0A90-720E': { instanceType: 'c2-standard-4', region: 'middleeast-north1' },
+    '406A-AA4B-1013': { instanceType: 'c2-standard-4', region: 'asia-south1' },
+    
+    // e2-standard-4 SKUs mapping
+    'D5C5-E209-22D3': { instanceType: 'e2-standard-4', region: 'us-east1' },
+    '00FD-B743-831B': { instanceType: 'e2-standard-4', region: 'us-west1' },
+    'C921-088E-792A': { instanceType: 'e2-standard-4', region: 'europe-central1' },
+    '9876-7A20-67F0': { instanceType: 'e2-standard-4', region: 'middleeast-north1' },
+    '210D-FDFA-448C': { instanceType: 'e2-standard-4', region: 'asia-south1' },
+};
 
 async function authenticate() {
     const credentialsPath = path.resolve(__dirname, '../GetSpot-Service-Account.json');
@@ -35,7 +31,7 @@ async function authenticate() {
 }
 
 async function fetchGCPSpotPrices(authClient) {
-    const projectId = 'getspot-402212'; 
+    const projectId = 'getspot-402212';
     const serviceId = '6F81-5844-456A';
     const url = `https://cloudbilling.googleapis.com/v1/services/${serviceId}/skus`;
 
@@ -45,33 +41,23 @@ async function fetchGCPSpotPrices(authClient) {
             Authorization: `Bearer ${accessToken.token}`,
         },
     });
-    
-    const items = response.data.skus;
-    const prices = [];
-    items.forEach(item => {
-        if (specificSkus.includes(item.skuId)) {
-            const pricingInfo = item.pricingInfo;
-            pricingInfo.forEach(price => {
-                const pricingExpression = price.pricingExpression;
-                const tieredRates = pricingExpression.tieredRates;
-                tieredRates.forEach(rate => {
-                    const unitPrice = rate.unitPrice;
-                    const currencyCode = unitPrice.currencyCode;
-                    const units = unitPrice.units;
-                    const nanos = unitPrice.nanos;
-                    prices.push({
-                        description: item.description,
-                        price: parseFloat(`${units}.${nanos}`),
-                        currency: currencyCode,
-                        sku: item.skuId,
-                        region: item.serviceRegions[0]  // Assumes each SKU is associated with a single region
-                    });
-                });
-            });
-        }
+
+    const items = response.data.skus.filter(item => Object.keys(skuToInstanceRegionMap).includes(item.skuId));
+    const prices = items.map(item => {
+        const mappedData = skuToInstanceRegionMap[item.skuId];
+        const pricingInfo = item.pricingInfo[0]; // Assume one pricingInfo per SKU
+        const unitPrice = pricingInfo.pricingExpression.tieredRates[0].unitPrice;
+        return {
+            instanceType: mappedData.instanceType,
+            region: mappedData.region,
+            price: parseFloat(`${unitPrice.units}.${unitPrice.nanos}`),
+            currency: unitPrice.currencyCode
+        };
     });
+
     return prices;
 }
+
 async function insertIntoDB(data) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -85,30 +71,28 @@ async function insertIntoDB(data) {
     });
 
     for (const entry of data) {
-        // Extract the instance type from the description
-        const instanceType = entry.description.split(' ')[0];
-
         // Find the matching instance type and region for the GCP entry
-        const instanceTypeObj = instanceTypes.find(it => it.name === instanceType);
+        const instanceTypeObj = instanceTypes.find(it => it.name === entry.instanceType);
         const regionObj = regions.find(r => r.name === entry.region);
 
-        // Use instance type and region to create a grouping identifier
         // If instance type or region is not found, use 'unknown-grouping'
         const grouping = instanceTypeObj && regionObj ? `${instanceTypeObj.grouping}-${regionObj.grouping}` : 'unknown-grouping';
-        
+
         const existingRecord = await SpotPricing.findOne({
             where: {
-                name: instanceType,
+                name: entry.instanceType,
                 regionCategory: `GCP-${entry.region}`,
                 date: today
             }
         });
 
         if (existingRecord) {
-            await existingRecord.update({ price: entry.price, timestamp: new Date() });
+            await existingRecord.update({ price: entry.price, timestamp:
+
+ new Date() });
         } else {
             await SpotPricing.create({
-                name: instanceType,
+                name: entry.instanceType,
                 regionCategory: `GCP-${entry.region}`,
                 date: today,
                 price: entry.price,
@@ -128,6 +112,5 @@ async function main() {
     }
     console.log('GCP data saved successfully');
 }
-
 
 main();
