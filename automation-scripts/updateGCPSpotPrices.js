@@ -11,6 +11,8 @@ const skuToInstanceRegionMap = {
     '40DE-6073-970E': { instanceType: 'c2-standard-4', region: 'europe-central1' },
     '08F8-0A90-720E': { instanceType: 'c2-standard-4', region: 'middleeast-north1' },
     '406A-AA4B-1013': { instanceType: 'c2-standard-4', region: 'asia-south1' },
+    //https://gcloud-compute.com/c2-standard-4.html to see avaialiblity of regions/skus 
+
     
     // e2-standard-4 SKUs mapping
     'D5C5-E209-22D3': { instanceType: 'e2-standard-4', region: 'us-east1' },
@@ -18,6 +20,8 @@ const skuToInstanceRegionMap = {
     'C921-088E-792A': { instanceType: 'e2-standard-4', region: 'europe-central1' },
     '9876-7A20-67F0': { instanceType: 'e2-standard-4', region: 'middleeast-north1' },
     '210D-FDFA-448C': { instanceType: 'e2-standard-4', region: 'asia-south1' },
+    //https://cloud.google.com/skus/sku-groups/compute-engine-flexible-cud-eligible-skus  for sku codes
+
 };
 
 async function authenticate() {
@@ -45,7 +49,7 @@ async function fetchGCPSpotPrices(authClient) {
     const items = response.data.skus.filter(item => Object.keys(skuToInstanceRegionMap).includes(item.skuId));
     const prices = items.map(item => {
         const mappedData = skuToInstanceRegionMap[item.skuId];
-        const pricingInfo = item.pricingInfo[0]; // Assume one pricingInfo per SKU
+        const pricingInfo = item.pricingInfo[0];
         const unitPrice = pricingInfo.pricingExpression.tieredRates[0].unitPrice;
         return {
             instanceType: mappedData.instanceType,
@@ -57,12 +61,10 @@ async function fetchGCPSpotPrices(authClient) {
 
     return prices;
 }
-
 async function insertIntoDB(data) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Fetch all instance types and regions from the database
     const instanceTypes = await InstanceType.findAll({
         where: { providerID: 'GCP' }
     });
@@ -71,38 +73,49 @@ async function insertIntoDB(data) {
     });
 
     for (const entry of data) {
-        // Find the matching instance type and region for the GCP entry
-        const instanceTypeObj = instanceTypes.find(it => it.name === entry.instanceType);
-        const regionObj = regions.find(r => r.name === entry.region);
+        const instanceTypeObj = instanceTypes.find(it => it.name.includes(entry.instanceType));
+        const regionObj = regions.find(r => r.standardizedRegion.includes(entry.region));
 
-        // If instance type or region is not found, use 'unknown-grouping'
-        const grouping = instanceTypeObj && regionObj ? `${instanceTypeObj.grouping}-${regionObj.grouping}` : 'unknown-grouping';
+        const name = instanceTypeObj ? `${instanceTypeObj.name}-${instanceTypeObj.category}` : entry.instanceType;
+        const regionCategory = regionObj ? `GCP-${regionObj.standardizedRegion}` : `GCP-${entry.region}`;
+
+        let grouping = '';
+        if (instanceTypeObj && instanceTypeObj.grouping) {
+            grouping += instanceTypeObj.grouping;
+        }
+        if (regionObj && regionObj.grouping) {
+            grouping += `-${regionObj.grouping}`;
+        }
+        grouping = grouping || 'unknown-grouping'; // Fallback to 'unknown-grouping' if both are undefined
 
         const existingRecord = await SpotPricing.findOne({
             where: {
-                name: entry.instanceType,
-                regionCategory: `GCP-${entry.region}`,
+                name: name,
+                regionCategory: regionCategory,
                 date: today
             }
         });
 
         if (existingRecord) {
-            await existingRecord.update({ price: entry.price, timestamp:
-
- new Date() });
-        } else {
-            await SpotPricing.create({
-                name: entry.instanceType,
-                regionCategory: `GCP-${entry.region}`,
-                date: today,
+            await existingRecord.update({
                 price: entry.price,
                 timestamp: new Date(),
                 grouping: grouping,
+            });
+        } else {
+            await SpotPricing.create({
+                name: name,
+                regionCategory: regionCategory,
+                date: today,
+                price: entry.price,
+                timestamp: new Date(),
+                grouping: grouping, 
                 providerID: 'GCP'
             });
         }
     }
 }
+
 
 async function main() {
     const authClient = await authenticate();
