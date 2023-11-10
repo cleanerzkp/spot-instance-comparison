@@ -1,0 +1,80 @@
+/bin/sh: /usr/bin/node: No such file or directory
+/bin/sh: /usr/bin/node: No such file or directory
+/bin/sh: /usr/bin/node: No such file or directory
+/bin/sh: /usr/bin/node: No such file or directory
+/bin/sh: /usr/bin/node: No such file or directory
+/bin/sh: /usr/bin/node: No such file or directory
+/bin/sh: /usr/bin/node: No such file or directory
+/bin/sh: /usr/bin/node: No such file or directory
+Script is running: 2023-11-10T13:31:02.272Z
+Executing (default): SELECT "instanceID", "providerID", "name", "vCPU", "RAM_GB", "category", "comparisonGroup", "grouping" FROM "InstanceTypes" AS "InstanceType" WHERE "InstanceType"."providerID" = 'AZR';
+Executing (default): SELECT "instanceID", "providerID", "name", "vCPU", "RAM_GB", "category", "comparisonGroup", "grouping" FROM "InstanceTypes" AS "InstanceType" WHERE "InstanceType"."providerID" = 'ALB';
+Executing (default): SELECT "regionID", "name", "standardizedRegion", "providerID", "regionCategory" FROM "Regions" AS "Region" WHERE "Region"."providerID" = 'AZR';
+Executing (default): SELECT "regionID", "name", "standardizedRegion", "providerID", "regionCategory" FROM "Regions" AS "Region" WHERE "Region"."providerID" = 'ALB';
+Executing (default): SELECT "regionID", "name", "standardizedRegion", "providerID", "regionCategory" FROM "Regions" AS "Region" WHERE "Region"."providerID" = 'ALB' AND "Region"."name" = 'us-east-1' LIMIT 1;
+node:internal/process/promises:279
+            triggerUncaughtException(err, true /* fromPromise */);
+            ^
+
+AssertionError [ERR_ASSERTION]: must pass "config.accessKeyId"
+    at new RPCClient (/Users/kacper/coding/spot-instance-comparison/node_modules/@alicloud/pop-core/lib/rpc.js:114:5)
+    at fetchAlibabaSpotPrices (/Users/kacper/coding/spot-instance-comparison/automation-scripts/updateAlibabaSpotPrices.js:25:20)
+    at processTicksAndRejections (node:internal/process/task_queues:96:5)
+    at async calculateDailyAverage (/Users/kacper/coding/spot-instance-comparison/automation-scripts/updateAlibabaSpotPrices.js:82:28)
+    at async main (/Users/kacper/coding/spot-instance-comparison/automation-scripts/updateAlibabaSpotPrices.js:108:7)
+    at async runAlibabaScript (/Users/kacper/coding/spot-instance-comparison/automation-scripts/updateAlibabaSpotPrices.js:114:5)
+    at async runAllScripts (/Users/kacper/coding/spot-instance-comparison/automation-scripts/updateall.js:7:5) {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: undefined,
+  expected: true,
+  operator: '=='
+}
+Script is running: 2023-11-10T13:32:01.510Z
+Executing (default): SELECT "instanceID", "providerID", "name", "vCPU", "RAM_GB", "category", "comparisonGroup", "grouping" FROM "InstanceTypes" AS "InstanceType" WHERE "InstanceType"."providerID" = 'AZR';
+Executing (default): SELECT "instanceID", "providerID", "name", "vCPU", "RAM_GB", "category", "comparisonGroup", "grouping" FROM "InstanceTypes" AS "InstanceType" WHERE "InstanceType"."providerID" = 'ALB';
+Executing (default): SELECT "regionID", "name", "standardizedRegion", "providerID", "regionCategory" FROM "Regions" AS "Region" WHERE "Region"."providerID" = 'AZR';
+Executing (default): SELECT "regionID", "name", "standardizedRegion", "providerID", "regionCategory" FROM "Regions" AS "Region" WHERE "Region"."providerID" = 'ALB';
+Executing (default): SELECT "regionID", "name", "standardizedRegion", "providerID", "regionCategory" FROM "Regions" AS "Region" WHERE "Region"."providerID" = 'ALB' AND "Region"."name" = 'us-east-1' LIMIT 1;
+node:internal/process/promises:279
+            triggerUncaughtException(err, true /* fromPromise */);
+            ^
+
+AssertionError [ERR_ASSERTION]: must pass "config.accessKeyId"
+    at new RPCClient (/Users/kacper/coding/spot-instance-comparison/node_modules/@alicloud/pop-core/lib/rpc.js:114:5)
+    at fetchAlibabaSpotPrices (/Users/kacper/coding/spot-instance-comparison/automation-scripts/updateAlibabaSpotPrices.js:25:20)
+    at processTicksAndRejections (node:internal/process/task_queues:96:5)
+    at async calculateDailyAverage (/Users/kacper/coding/spot-instance-comparison/automation-scripts/updateAlibabaSpotPrices.js:82:28)
+    at async main (/Users/kacper/coding/spot-instance-comparison/automation-scripts/updateAlibabaSpotPrices.js:108:7)
+    at async runAlibabaScript (/Users/kacper/coding/spot-instance-comparison/automation-scripts/updateAlibabaSpotPrices.js:114:5)
+    at async runAllScripts (/Users/kacper/coding/spot-instance-comparison/automation-scripts/updateall.js:7:5) {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: undefined,
+  expected: true,
+  operator: '=='
+}
+Script is running: 2023-11-10T13:33:02.246Z
+Executing (default): SELECT "instanceID", "providerID", "name", "vCPU", "RAM_GB", "category", "comparisonGroup", "grouping" FROM "InstanceTypes" AS "InstanceType" WHERE "InstanceType"."providerID" = 'AZR';
+Executing (default): SELECT "instanceID", "providerID", "name", "vCPU", "RAM_GB", "category", "comparisonGroup", "grouping" FROM "InstanceTypes" AS "InstanceType" WHERE "InstanceType"."providerID" = 'ALB';
+Executing (default): SELECT "regionID", "name", "standardizedRegion", "providerID", "regionCategory" FROM "Regions" AS "Region" WHERE "Region"."providerID" = 'AZR';
+Executing (default): SELECT "regionID", "name", "standardizedRegion", "providerID", "regionCategory" FROM "Regions" AS "Region" WHERE "Region"."providerID" = 'ALB';
+Executing (default): SELECT "regionID", "name", "standardizedRegion", "providerID", "regionCategory" FROM "Regions" AS "Region" WHERE "Region"."providerID" = 'ALB' AND "Region"."name" = 'us-east-1' LIMIT 1;
+node:internal/process/promises:279
+            triggerUncaughtException(err, true /* fromPromise */);
+            ^
+
+AssertionError [ERR_ASSERTION]: must pass "config.accessKeyId"
+    at new RPCClient (/Users/kacper/coding/spot-instance-comparison/node_modules/@alicloud/pop-core/lib/rpc.js:114:5)
+    at fetchAlibabaSpotPrices (/Users/kacper/coding/spot-instance-comparison/automation-scripts/updateAlibabaSpotPrices.js:25:20)
+    at processTicksAndRejections (node:internal/process/task_queues:96:5)
+    at async calculateDailyAverage (/Users/kacper/coding/spot-instance-comparison/automation-scripts/updateAlibabaSpotPrices.js:82:28)
+    at async main (/Users/kacper/coding/spot-instance-comparison/automation-scripts/updateAlibabaSpotPrices.js:108:7)
+    at async runAlibabaScript (/Users/kacper/coding/spot-instance-comparison/automation-scripts/updateAlibabaSpotPrices.js:114:5)
+    at async runAllScripts (/Users/kacper/coding/spot-instance-comparison/automation-scripts/updateall.js:7:5) {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: undefined,
+  expected: true,
+  operator: '=='
+}
