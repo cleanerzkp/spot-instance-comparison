@@ -25,13 +25,13 @@ This project aims to monitor and compare the prices of spot instances offered by
    - Access credentials for AWS, Azure, Google Cloud, and Alibaba.
 
 2. **Installation:**
-   - Clone the repository: `git clone https://github.com/your-username/spot-instance-comparison.git`
+   - Clone the repository: `git clone https://github.com/cleanerzkp/spot-instance-comparison.git`
    - Navigate to the project directory: `cd spot-instance-comparison`
    - Install dependencies: `npm install`
 
 3. **Configuration:**
    - Update the `.env` file with the necessary credentials and configurations.
-   - Update the 
+   - Update the GetSpot-Service-Account.json for GCP
    - Update `config/dbConfig.json` with your database configurations.
 
 ## Directory Structure
