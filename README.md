@@ -31,6 +31,7 @@ This project aims to monitor and compare the prices of spot instances offered by
 
 3. **Configuration:**
    - Update the `.env` file with the necessary credentials and configurations.
+   - Update the 
    - Update `config/dbConfig.json` with your database configurations.
 
 ## Directory Structure
@@ -50,20 +51,9 @@ npx sequelize-cli db:migrate
 Scripts for data retrieval are located in the `scripts/` directory. Each script corresponds to a specific cloud provider.
 
 - **Running Scripts:**
-  - Azure: `node scripts/azureScript.js`
-  - AWS: `node scripts/AWS.js`
-  - Google Cloud: `node scripts/google.js`
-  - Alibaba: `node scripts/alibaba.js`
+  
+  - All 4 providers: `node scripts/updateAll`
 
-## API Endpoints
-
-API route definitions are located in the `routes/apiRoutes.js` file. Start the server using the command:
-
-```bash
-node server.js
-```
-
-Access the API at `http://localhost:PORT/` where `PORT` is the port number specified in your `.env` file.
 
 ## Testing
 
