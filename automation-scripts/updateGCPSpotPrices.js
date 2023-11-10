@@ -25,42 +25,58 @@ const skuToInstanceRegionMap = {
 };
 
 async function authenticate() {
-    const credentialsPath = path.resolve(__dirname, '../GetSpot-Service-Account.json');
-    const auth = new GoogleAuth({
-        keyFilename: credentialsPath,
-        scopes: ['https://www.googleapis.com/auth/cloud-platform'],
-    });
-    const authClient = await auth.getClient();
-    return authClient;
+    try {
+        const credentialsPath = path.resolve(__dirname, '../GetSpot-Service-Account.json');
+        const auth = new GoogleAuth({
+            keyFilename: credentialsPath,
+            scopes: ['https://www.googleapis.com/auth/cloud-platform'],
+        });
+        const authClient = await auth.getClient();
+        return authClient;
+    } catch (error) {
+        console.error("Error in authentication:", error);
+        throw error;
+    }
 }
 
 async function fetchGCPSpotPrices(authClient) {
-    const projectId = 'getspot-402212';
     const serviceId = '6F81-5844-456A';
     const url = `https://cloudbilling.googleapis.com/v1/services/${serviceId}/skus`;
 
     const accessToken = await authClient.getAccessToken();
-    const response = await axios.get(url, {
-        headers: {
-            Authorization: `Bearer ${accessToken.token}`,
-        },
-    });
 
-    const items = response.data.skus.filter(item => Object.keys(skuToInstanceRegionMap).includes(item.skuId));
-    const prices = items.map(item => {
-        const mappedData = skuToInstanceRegionMap[item.skuId];
-        const pricingInfo = item.pricingInfo[0];
-        const unitPrice = pricingInfo.pricingExpression.tieredRates[0].unitPrice;
-        return {
-            instanceType: mappedData.instanceType,
-            region: mappedData.region,
-            price: parseFloat(`${unitPrice.units}.${unitPrice.nanos}`),
-            currency: unitPrice.currencyCode
-        };
-    });
+    let items = [];
+    let nextPageToken;
+
+    do {
+        const params = nextPageToken ? { pageToken: nextPageToken } : {};
+        const response = await axios.get(url, {
+            headers: {
+                Authorization: `Bearer ${accessToken.token}`,
+            },
+            params: params
+        });
+
+        items = items.concat(response.data.skus);
+        nextPageToken = response.data.nextPageToken;
+    } while (nextPageToken);
+
+    const prices = items.filter(item => Object.keys(skuToInstanceRegionMap).includes(item.skuId))
+                        .map(item => {
+                            const mappedData = skuToInstanceRegionMap[item.skuId];
+                            const pricingInfo = item.pricingInfo[0];
+                            const unitPrice = pricingInfo.pricingExpression.tieredRates[0].unitPrice;
+                            return {
+                                instanceType: mappedData.instanceType,
+                                region: mappedData.region,
+                                price: parseFloat(`${unitPrice.units}.${unitPrice.nanos}`),
+                                currency: unitPrice.currencyCode
+                            };
+                        });
 
     return prices;
 }
+
 async function insertIntoDB(data) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -118,12 +134,16 @@ async function insertIntoDB(data) {
 
 
 async function main() {
-    const authClient = await authenticate();
-    const data = await fetchGCPSpotPrices(authClient);
-    if (data && data.length > 0) {
-        await insertIntoDB(data);
+    try {
+        const authClient = await authenticate();
+        const data = await fetchGCPSpotPrices(authClient);
+        if (data && data.length > 0) {
+            await insertIntoDB(data);
+        }
+        console.log('GCP data saved successfully');
+    } catch (error) {
+        console.error("Error in main function:", error);
     }
-    console.log('GCP data saved successfully');
 }
 
 main();
