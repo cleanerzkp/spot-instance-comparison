@@ -25,12 +25,13 @@ This project aims to monitor and compare the prices of spot instances offered by
    - Access credentials for AWS, Azure, Google Cloud, and Alibaba.
 
 2. **Installation:**
-   - Clone the repository: `git clone https://github.com/your-username/spot-instance-comparison.git`
+   - Clone the repository: `git clone https://github.com/cleanerzkp/spot-instance-comparison.git`
    - Navigate to the project directory: `cd spot-instance-comparison`
    - Install dependencies: `npm install`
 
 3. **Configuration:**
    - Update the `.env` file with the necessary credentials and configurations.
+   - Update the GetSpot-Service-Account.json for GCP
    - Update `config/dbConfig.json` with your database configurations.
 
 ## Directory Structure
@@ -50,20 +51,9 @@ npx sequelize-cli db:migrate
 Scripts for data retrieval are located in the `scripts/` directory. Each script corresponds to a specific cloud provider.
 
 - **Running Scripts:**
-  - Azure: `node scripts/azureScript.js`
-  - AWS: `node scripts/AWS.js`
-  - Google Cloud: `node scripts/google.js`
-  - Alibaba: `node scripts/alibaba.js`
+  
+  - All 4 providers: `node scripts/updateAll`
 
-## API Endpoints
-
-API route definitions are located in the `routes/apiRoutes.js` file. Start the server using the command:
-
-```bash
-node server.js
-```
-
-Access the API at `http://localhost:PORT/` where `PORT` is the port number specified in your `.env` file.
 
 ## Testing
 
