@@ -91,7 +91,7 @@ const runAlibabaScript = async () => {
 
 module.exports = { runAlibabaScript };
 
-const { runAlibabaScript } = require('./Alibaba');
+const { runAlibabaScript } = require('./ALB');
 
 const runAllScripts = async () => {
   await runAlibabaScript();
