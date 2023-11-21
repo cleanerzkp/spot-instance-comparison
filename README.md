@@ -14,8 +14,7 @@ This project aims to analyze and compare spot instance prices from AWS, Azure, G
 6. [Database Structure](#database-structure)
 7. [Data Accuracy and Fairness](#data-accuracy-and-fairness)
 8. [Google Cloud Special Considerations](#google-cloud-special-considerations)
-9. [Contributing](#contributing)
-10. [License](#license)
+9. [License](#license)
 
 ## Setup and Installation
 
@@ -92,10 +91,6 @@ This project aims to analyze and compare spot instance prices from AWS, Azure, G
 
 - Before fetching spot prices, SKU IDs must be verified.
 - The main script for Google Cloud (`runGCPScript`) retrieves spot prices and inserts them into the database.
-
-## Contributing
-
-- Contributions are welcome! Please read CONTRIBUTING.md for guidelines on contributing to this project.
 
 ## License
 
