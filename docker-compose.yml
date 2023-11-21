@@ -3,6 +3,7 @@ version: '3.8'
 services:
   db:
     image: postgres
+    restart: always
     environment:
       POSTGRES_USER: kacper
       POSTGRES_PASSWORD: QWERTYUIOP
@@ -26,6 +27,8 @@ services:
       - db
     volumes:
       - .:/app
+    links:
+      - db
 
 volumes:
   pgdata:

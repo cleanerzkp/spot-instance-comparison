@@ -3,7 +3,7 @@
     "username": "kacper",
     "password": "QWERTYUIOP",
     "database": "spot_instance_comparison",
-    "host": "127.0.0.1",
+    "host": "db",
     "dialect": "postgres"
     
   },
