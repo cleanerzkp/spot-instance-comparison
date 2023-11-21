@@ -1,6 +1,5 @@
 require('dotenv').config({ path: '../.env' });
-const ALIBABA_ACCESS_KEY_ID = process.env.ALIBABA_ACCESS_KEY_ID;
-const ALIBABA_ACCESS_KEY_SECRET = process.env.ALIBABA_ACCESS_KEY_SECRET;
+
 
 const { Sequelize, DataTypes } = require('sequelize');
 const { RPCClient } = require('@alicloud/pop-core');

@@ -1,6 +1,5 @@
 require('dotenv').config({ path: '../.env' });
-process.env.AWS_ACCESS_KEY_ID = process.env.AWS_ACCESS_KEY;
-process.env.AWS_SECRET_ACCESS_KEY = process.env.AWS_SECRET_KEY;
+
 
 const { exec } = require('child_process');
 const db = require('../models');
