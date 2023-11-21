@@ -1,93 +1,102 @@
 # Spot Instance Price Comparison Project
 
 ## Project Overview
-This project aims to monitor and compare the prices of spot instances offered by various cloud service providers, with a focus on demonstrating cost-effectiveness. The project retrieves, stores, and analyzes the pricing data of spot instances from different cloud providers like AWS, Azure, Google Cloud, and Alibaba. It is designed to run in a Unix environment and utilizes a structured database to facilitate data comparison.
+
+This project aims to analyze and compare spot instance prices from AWS, Azure, Google Cloud, and Alibaba. It focuses on objective comparison by calculating the average daily price of spot instances with similar hardware specifications in equivalent regions.
 
 ## Table of Contents
 
 1. [Setup and Installation](#setup-and-installation)
-2. [Directory Structure](#directory-structure)
-3. [Database Configuration](#database-configuration)
-4. [Data Retrieval Scripts](#data-retrieval-scripts)
-5. [API Endpoints](#api-endpoints)
-6. [Testing](#testing)
-7. [Monitoring and Maintenance](#monitoring-and-maintenance)
-8. [Docker Configuration](#docker-configuration)
-9. [Logs](#logs)
-10. [Contributing](#contributing)
-11. [License](#license)
+2. [Configuration](#configuration)
+3. [Key Components](#key-components)
+4. [Folders and Scripts](#folders-and-scripts)
+5. [Running the Application](#running-the-application)
+6. [Database Structure](#database-structure)
+7. [Data Accuracy and Fairness](#data-accuracy-and-fairness)
+8. [Google Cloud Special Considerations](#google-cloud-special-considerations)
+9. [Contributing](#contributing)
+10. [License](#license)
 
 ## Setup and Installation
 
-1. **Prerequisites:**
-   - Node.js v14.x or later.
-   - Docker and Docker Compose (if using Docker for deployment).
-   - Access credentials for AWS, Azure, Google Cloud, and Alibaba.
+### Prerequisites
 
-2. **Installation:**
-   - Clone the repository: `git clone https://github.com/cleanerzkp/spot-instance-comparison.git`
-   - Navigate to the project directory: `cd spot-instance-comparison`
-   - Install dependencies: `npm install`
+- Node.js v14.x or later.
+- PostgreSQL or compatible SQL database.
+- Access credentials for AWS, Azure, Google Cloud, and Alibaba.
 
-3. **Configuration:**
-   - Update the `.env` file with the necessary credentials and configurations.
-   - Update the GetSpot-Service-Account.json for GCP
-   - Update `config/dbConfig.json` with your database configurations.
+### Installation Steps
 
-## Directory Structure
+1. Clone the repository: `git clone https://github.com/cleanerzkp/spot-instance-comparison.git`
+2. Navigate to the directory: `cd spot-instance-comparison`
+3. Install dependencies: `npm install`
 
-Refer to the project's directory structure documentation for an overview of the organizational setup of the project.
+## Configuration
 
-## Database Configuration
+- Update `.env` file with necessary credentials for each cloud provider.
+- Configure `config/dbConfig.json` with your database settings.
+- Set up `GetSpot-Service-Account.json` for Google Cloud Platform integration.
 
-Update the database configurations in `config/dbConfig.json` and run the migrations using the command:
+## Key Components
 
-```bash
-npx sequelize-cli db:migrate
-```
+- **Cloud Providers**: Integration with AWS, Azure, Google Cloud, and Alibaba.
+- **Instance Types**: Grouped by categories like General Purpose (GP1), Compute Optimized (CO1), etc.
+- **Region Mapping**: Aligning different region names across providers for accurate comparison.
+- **Spot Pricing**: Storing and comparing average daily prices from each provider.
 
-## Data Retrieval Scripts
+## Folders and Scripts
 
-Scripts for data retrieval are located in the `scripts/` directory. Each script corresponds to a specific cloud provider.
+### automation-scripts
 
-- **Running Scripts:**
-  
-  - All 4 providers: `node scripts/updateAll`
+- Contains scripts for each provider and a master script (`updateAll`) to run them all.
+- Updates the database with the average spot price for the last 24 hours.
+- Can be set up as a cron job for regular updates.
 
+### historical-data
 
-## Testing
+- Fetches historical data, available for AWS and Alibaba.
+- Useful for historical price analysis and trend identification.
 
-Tests are located in the `tests/` directory. Run tests using the command:
+### test
 
-```bash
-npm test
-```
+- Contains test scripts to check price history availability for specific instances and regions.
+- Particularly useful before adding new instances or regions to the database.
 
-## Monitoring and Maintenance
+### models
 
-Monitor the application logs in the `logs/` directory to ensure the system is running as expected.
+- Defines the Sequelize database models.
 
-## Docker Configuration
+### Additional Scripts
 
-Docker configurations are provided for containerization and easier deployment. Build and run the Docker container using the commands:
+- **`testDbConnection.js`**: Tests the database connection.
+- **Google Cloud Test Scripts**: Two scripts are used for Google Cloud due to the requirement of SKU ID alongside API Key.
 
-```bash
-docker build -t spot-instance-comparison .
-docker-compose up
-```
+## Running the Application
 
-## Logs
+- Navigate to `automation-scripts` and run `node updateAll.js` to update all providers.
+- Use specific scripts in `historical-data` and `test` for additional data fetching and testing.
 
-Application logs are stored in the `logs/` directory. Review these logs to troubleshoot issues or monitor application performance.
+## Database Structure
+
+- **CloudProvider**: Stores basic info about each cloud provider.
+- **InstanceType**: Groups similar instances for objective comparison.
+- **Region**: Maps different naming conventions of regions across providers.
+- **SpotPricing**: Core table for storing average daily prices.
+
+## Data Accuracy and Fairness
+
+- Focus on objective comparison by calculating average daily prices, accommodating different data update frequencies among providers.
+- Region and instance type mapping ensures accurate and fair comparisons.
+
+## Google Cloud Special Considerations
+
+- Before fetching spot prices, SKU IDs must be verified.
+- The main script for Google Cloud (`runGCPScript`) retrieves spot prices and inserts them into the database.
 
 ## Contributing
 
-Please read the CONTRIBUTING.md for details on our code of conduct, and the process for submitting pull requests to the project.
+- Contributions are welcome! Please read CONTRIBUTING.md for guidelines on contributing to this project.
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE.md file for details.
-
----
-
-This README provides an overview and setup instructions for the Spot Instance Price Comparison project. Adjust the URLs, commands, and other specifics to match your project setup.
+- This project is licensed under the MIT License - see LICENSE.md for details.
