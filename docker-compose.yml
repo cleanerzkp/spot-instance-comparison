@@ -1,14 +1,32 @@
-version: "3.8" 
-
-volumes:
-  db-data:
+version: '3.8'
 
 services:
-
   db:
     image: postgres:16
     volumes:
       - db-data:/var/lib/postgresql/data
-    restart: always 
+    restart: always
     environment:
-      - POSTGRES_PASSWORD=postgres
+      POSTGRES_USER: kacper
+      POSTGRES_PASSWORD: QWERTYUIOP
+      POSTGRES_DB: spot_instance_comparison
+    ports:
+      - "5432:5432"
+
+  app:
+    build: .
+    environment:
+      NODE_ENV: development
+      DB_USERNAME: kacper
+      DB_PASSWORD: QWERTYUIOP
+      DB_DATABASE: spot_instance_comparison
+      DB_HOST: db
+    ports:
+      - "3000:3000"
+    depends_on:
+      - db
+    volumes:
+      - .:/app
+
+volumes:
+  db-data:
