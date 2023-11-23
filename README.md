@@ -12,9 +12,7 @@ This project aims to analyze and compare spot instance prices from AWS, Azure, G
 4. [Folders and Scripts](#folders-and-scripts)
 5. [Running the Application](#running-the-application)
 6. [Database Structure](#database-structure)
-7. [Data Accuracy and Fairness](#data-accuracy-and-fairness)
-8. [Google Cloud Special Considerations](#google-cloud-special-considerations)
-9. [License](#license)
+
 
 ## Setup and Installation
 
@@ -22,7 +20,8 @@ This project aims to analyze and compare spot instance prices from AWS, Azure, G
 
 - Node.js v14.x or later.
 - PostgreSQL or compatible SQL database.
-- Access credentials for AWS, Azure, Google Cloud, and Alibaba.
+- Access credentials for AWS, Azure, Google Cloud, and Alibaba (configured in `.env` file).
+- Access to Google Cloud JSON for API integration.
 
 ### Installation Steps
 
@@ -59,7 +58,7 @@ This project aims to analyze and compare spot instance prices from AWS, Azure, G
 ### test
 
 - Contains test scripts to check price history availability for specific instances and regions.
-- Particularly useful before adding new instances or regions to the database.
+- Includes two tests for Google Cloud: one for SKU verification and another for testing spot prices fetch (`runGCPScript`).
 
 ### models
 
@@ -81,17 +80,3 @@ This project aims to analyze and compare spot instance prices from AWS, Azure, G
 - **InstanceType**: Groups similar instances for objective comparison.
 - **Region**: Maps different naming conventions of regions across providers.
 - **SpotPricing**: Core table for storing average daily prices.
-
-## Data Accuracy and Fairness
-
-- Focus on objective comparison by calculating average daily prices, accommodating different data update frequencies among providers.
-- Region and instance type mapping ensures accurate and fair comparisons.
-
-## Google Cloud Special Considerations
-
-- Before fetching spot prices, SKU IDs must be verified.
-- The main script for Google Cloud (`runGCPScript`) retrieves spot prices and inserts them into the database.
-
-## License
-
-- This project is licensed under the MIT License - see LICENSE.md for details.
