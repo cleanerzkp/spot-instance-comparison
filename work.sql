@@ -210,7 +210,7 @@ ALTER TABLE ONLY public."SpotPricings" ALTER COLUMN "pricingID" SET DEFAULT next
 -- Data for Name: CloudProviders; Type: TABLE DATA; Schema: public; Owner: kacper
 --
 
-COPY public."CloudProviders" ("providerID", name, "API_endpoint", data_frequency, "createdAt", "updatedAt") FROM stdin;
+INSERT INTO public."CloudProviders" ("providerID", name, "API_endpoint", data_frequency, "createdAt", "updatedAt") VALUES;
 ALB	Alibaba	https://ecs.aliyuncs.com	1hour	2023-10-22 12:51:33.996807+02	2023-10-22 12:51:33.996807+02
 AWS	AWS	https://ec2.amazonaws.com	24hrs	2023-10-22 12:51:33.996807+02	2023-10-22 12:51:33.996807+02
 AZR	Azure	https://management.azure.com	few hours	2023-10-22 12:51:33.996807+02	2023-10-22 12:51:33.996807+02
@@ -222,7 +222,7 @@ GCP	Google Cloud Platform	https://compute.googleapis.com	few hours	2023-10-22 12
 -- Data for Name: InstanceTypes; Type: TABLE DATA; Schema: public; Owner: kacper
 --
 
-COPY public."InstanceTypes" ("instanceID", "providerID", name, "vCPU", "RAM_GB", category, "comparisonGroup", "grouping") FROM stdin;
+INSERT INTO public."InstanceTypes" ("instanceID", "providerID", name, "vCPU", "RAM_GB", category, "comparisonGroup", "grouping") VALUES;
 3	AWS	t4g.xlarge	4	16	general-purpose	AWS-t4g.xlarge-general-purpose-GP1	GP1
 7	GCP	e2-standard-4	4	16	general-purpose	GCP-e2-standard-4-general-purpose-GP1	GP1
 4	AWS	c6a.xlarge	4	8	compute-optimized	AWS-c6a.xlarge-compute-optimized-CO1	CO1
@@ -238,7 +238,7 @@ COPY public."InstanceTypes" ("instanceID", "providerID", name, "vCPU", "RAM_GB",
 -- Data for Name: Regions; Type: TABLE DATA; Schema: public; Owner: kacper
 --
 
-COPY public."Regions" ("regionID", name, "standardizedRegion", "providerID", "regionCategory", "SKU") FROM stdin;
+INSERT INTO public."Regions" ("regionID", name, "standardizedRegion", "providerID", "regionCategory", "SKU") VALUES;
 1	us-east-1	us-east	ALB	ALB-us-east	\N
 6	us-west-1	us-west	AWS	AWS-us-west	\N
 9	eu-central-1	europe-central	ALB	ALB-europe-central	\N
@@ -266,7 +266,7 @@ COPY public."Regions" ("regionID", name, "standardizedRegion", "providerID", "re
 -- Data for Name: SpotPricings; Type: TABLE DATA; Schema: public; Owner: kacper
 --
 
-COPY public."SpotPricings" ("pricingID", name, "regionCategory", date, price, "timestamp", "createdAt", "updatedAt", "grouping", "providerID") FROM stdin;
+COPY public."SpotPricings" ("pricingID", name, "regionCategory", date, price, "timestamp", "createdAt", "updatedAt", "grouping", "providerID") VALUES;
 3679	D4s_v3-compute-optimized	AZR-eastus	2023-11-15 22:00:00+01	0.1231	2023-11-15 22:00:00+01	2023-11-15 22:00:00+01	2023-11-16 18:59:19.896+01	CO1	AZR
 3680	D4s_v3-compute-optimized	AZR-southindia	2023-11-15 22:00:00+01	0.1571	2023-11-15 22:00:00+01	2023-11-15 22:00:00+01	2023-11-16 18:59:19.896+01	CO1	AZR
 3681	ecs.g5.xlarge-general-purpose	ALB-us-east-1	2023-11-16 01:00:00+01	0.0250	2023-11-17 21:25:25.129+01	2023-11-16 18:59:02.445+01	2023-11-17 21:25:25.131+01	GP1	ALB

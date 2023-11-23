@@ -2,17 +2,17 @@
   "development": {
     "username": "kacper",
     "password": "QWERTYUIOP",
-    "database": "spot_instance_comparison_test",
+    "database": "spot_instance_comparison",
     "host": "db",
     "dialect": "postgres"
     
   },
   "test": {
     "username": "root",
-    "password": null,
+    "password": "null",
     "database": "database_test",
-    "host": "127.0.0.1",
-    "dialect": "mysql"
+    "host": "test-db",
+    "dialect": "postgres"
   },
   "production": {
     "username": "root",
