@@ -31,9 +31,9 @@ This project aims to analyze and compare spot instance prices from AWS, Azure, G
 
 ## Configuration
 
-- Update `.env` file with necessary credentials for each cloud provider.
+- Update `.env.example` file with necessary credentials for each cloud provider (remove .example).
 - Configure `config/dbConfig.json` with your database settings.
-- Set up `GetSpot-Service-Account.json` for Google Cloud Platform integration.
+- Set up `GetSpot-Service-Account.json.example` for Google Cloud Platform integration (remove .example).
 
 ## Key Components
 
@@ -58,7 +58,7 @@ This project aims to analyze and compare spot instance prices from AWS, Azure, G
 ### test
 
 - Contains test scripts to check price history availability for specific instances and regions.
-- Includes two tests for Google Cloud: one for SKU verification and another for testing spot prices fetch (`runGCPScript`).
+- Includes two tests for Google Cloud: one for SKU verification and another for testing spot prices fetch.
 
 ### models
 
@@ -67,7 +67,6 @@ This project aims to analyze and compare spot instance prices from AWS, Azure, G
 ### Additional Scripts
 
 - **`testDbConnection.js`**: Tests the database connection.
-- **Google Cloud Test Scripts**: Two scripts are used for Google Cloud due to the requirement of SKU ID alongside API Key.
 
 ## Running the Application
 
