@@ -13,18 +13,6 @@ services:
     ports:
       - "5432:5432"
 
-  test-db:
-    image: postgres:16
-    volumes:
-      - test-db-data:/var/lib/postgresql/data
-    restart: always
-    environment:
-      POSTGRES_USER: root
-      POSTGRES_PASSWORD: null
-      POSTGRES_DB: database_test
-    ports:
-      - "5433:5432" # Notice the different port
-
   app:
     build: .
     environment:
@@ -42,4 +30,3 @@ services:
 
 volumes:
   db-data:
-  test-db-data:
