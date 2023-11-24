@@ -5,24 +5,25 @@ const path = require('path');
 module.exports = {
   async up(queryInterface, Sequelize) {
     try {
-      // Read SQL file
       const sql = fs.readFileSync(path.join(__dirname, '../work.sql'), 'utf8');
-
-      // Split SQL commands
-      const queries = sql.split(/;\s*$/m);
+      const queries = sql.split(/;\s*\n/); // Adjusted for new line after semicolon
 
       for (const query of queries) {
-        if (query.length > 1) {
-          console.log('Executing query:', query);
-          await queryInterface.sequelize.query(query);
+        if (query.trim().length > 0) {
+          console.log('Executing query:', query.substring(0, 100)); // Log first 100 characters of query
+          await queryInterface.sequelize.query(query).catch(err => {
+            console.error('Error executing query:', query, err);
+            throw err; // Stop further execution on error
+          });
         }
       }
     } catch (error) {
       console.error('Migration failed:', error);
+      throw error; // Propagate error for visibility
     }
   },
 
   async down(queryInterface, Sequelize) {
-    // Logic for reverting the changes (if applicable)
+    // Logic for reverting the changes, if needed
   }
 };

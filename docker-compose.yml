@@ -5,6 +5,7 @@ services:
     image: postgres:16
     volumes:
       - db-data:/var/lib/postgresql/data
+      - ./work.sql:/docker-entrypoint-initdb.d/init.sql
     restart: always
     environment:
       POSTGRES_USER: kacper

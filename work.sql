@@ -24,7 +24,7 @@ SET default_table_access_method = heap;
 -- Name: CloudProviders; Type: TABLE; Schema: public; Owner: kacper
 --
 
-CREATE TABLE IF NOT EXISTS public."CloudProviders" (
+CREATE TABLE public."CloudProviders" (
     "providerID" character varying(3) NOT NULL,
     name character varying(255),
     "API_endpoint" character varying(255),
@@ -40,7 +40,7 @@ ALTER TABLE public."CloudProviders" OWNER TO kacper;
 -- Name: CloudProviders_providerID_seq; Type: SEQUENCE; Schema: public; Owner: kacper
 --
 
-CREATE SEQUENCE IF NOT EXISTS public."CloudProviders_providerID_seq"
+CREATE SEQUENCE public."CloudProviders_providerID_seq"
     AS integer
     START WITH 1
     INCREMENT BY 1
@@ -62,7 +62,7 @@ ALTER SEQUENCE public."CloudProviders_providerID_seq" OWNED BY public."CloudProv
 -- Name: InstanceTypes; Type: TABLE; Schema: public; Owner: kacper
 --
 
-CREATE TABLE IF NOT EXISTS public."InstanceTypes" (
+CREATE TABLE public."InstanceTypes" (
     "instanceID" integer NOT NULL,
     "providerID" character varying(3),
     name character varying(255),
@@ -80,7 +80,7 @@ ALTER TABLE public."InstanceTypes" OWNER TO kacper;
 -- Name: InstanceTypes_instanceID_seq; Type: SEQUENCE; Schema: public; Owner: kacper
 --
 
-CREATE SEQUENCE IF NOT EXISTS public."InstanceTypes_instanceID_seq"
+CREATE SEQUENCE public."InstanceTypes_instanceID_seq"
     AS integer
     START WITH 1
     INCREMENT BY 1
@@ -102,7 +102,7 @@ ALTER SEQUENCE public."InstanceTypes_instanceID_seq" OWNED BY public."InstanceTy
 -- Name: Regions; Type: TABLE; Schema: public; Owner: kacper
 --
 
-CREATE TABLE IF NOT EXISTS public."Regions" (
+CREATE TABLE public."Regions" (
     "regionID" integer NOT NULL,
     name character varying(255),
     "standardizedRegion" character varying(255),
@@ -118,7 +118,7 @@ ALTER TABLE public."Regions" OWNER TO kacper;
 -- Name: Regions_regionID_seq; Type: SEQUENCE; Schema: public; Owner: kacper
 --
 
-CREATE SEQUENCE IF NOT EXISTS public."Regions_regionID_seq"
+CREATE SEQUENCE public."Regions_regionID_seq"
     AS integer
     START WITH 1
     INCREMENT BY 1
@@ -140,7 +140,7 @@ ALTER SEQUENCE public."Regions_regionID_seq" OWNED BY public."Regions"."regionID
 -- Name: SpotPricings; Type: TABLE; Schema: public; Owner: kacper
 --
 
-CREATE TABLE IF NOT EXISTS public."SpotPricings" (
+CREATE TABLE public."SpotPricings" (
     "pricingID" integer NOT NULL,
     name text,
     "regionCategory" text,
@@ -160,7 +160,7 @@ ALTER TABLE public."SpotPricings" OWNER TO kacper;
 -- Name: SpotPricings_pricingID_seq; Type: SEQUENCE; Schema: public; Owner: kacper
 --
 
-CREATE SEQUENCE IF NOT EXISTS public."SpotPricings_pricingID_seq"
+CREATE SEQUENCE public."SpotPricings_pricingID_seq"
     AS integer
     START WITH 1
     INCREMENT BY 1
@@ -210,7 +210,7 @@ ALTER TABLE ONLY public."SpotPricings" ALTER COLUMN "pricingID" SET DEFAULT next
 -- Data for Name: CloudProviders; Type: TABLE DATA; Schema: public; Owner: kacper
 --
 
-INSERT INTO public."CloudProviders" ("providerID", name, "API_endpoint", data_frequency, "createdAt", "updatedAt") VALUES;
+COPY public."CloudProviders" ("providerID", name, "API_endpoint", data_frequency, "createdAt", "updatedAt") FROM stdin;
 ALB	Alibaba	https://ecs.aliyuncs.com	1hour	2023-10-22 12:51:33.996807+02	2023-10-22 12:51:33.996807+02
 AWS	AWS	https://ec2.amazonaws.com	24hrs	2023-10-22 12:51:33.996807+02	2023-10-22 12:51:33.996807+02
 AZR	Azure	https://management.azure.com	few hours	2023-10-22 12:51:33.996807+02	2023-10-22 12:51:33.996807+02
@@ -222,7 +222,7 @@ GCP	Google Cloud Platform	https://compute.googleapis.com	few hours	2023-10-22 12
 -- Data for Name: InstanceTypes; Type: TABLE DATA; Schema: public; Owner: kacper
 --
 
-INSERT INTO public."InstanceTypes" ("instanceID", "providerID", name, "vCPU", "RAM_GB", category, "comparisonGroup", "grouping") VALUES;
+COPY public."InstanceTypes" ("instanceID", "providerID", name, "vCPU", "RAM_GB", category, "comparisonGroup", "grouping") FROM stdin;
 3	AWS	t4g.xlarge	4	16	general-purpose	AWS-t4g.xlarge-general-purpose-GP1	GP1
 7	GCP	e2-standard-4	4	16	general-purpose	GCP-e2-standard-4-general-purpose-GP1	GP1
 4	AWS	c6a.xlarge	4	8	compute-optimized	AWS-c6a.xlarge-compute-optimized-CO1	CO1
@@ -238,7 +238,7 @@ INSERT INTO public."InstanceTypes" ("instanceID", "providerID", name, "vCPU", "R
 -- Data for Name: Regions; Type: TABLE DATA; Schema: public; Owner: kacper
 --
 
-INSERT INTO public."Regions" ("regionID", name, "standardizedRegion", "providerID", "regionCategory", "SKU") VALUES;
+COPY public."Regions" ("regionID", name, "standardizedRegion", "providerID", "regionCategory", "SKU") FROM stdin;
 1	us-east-1	us-east	ALB	ALB-us-east	\N
 6	us-west-1	us-west	AWS	AWS-us-west	\N
 9	eu-central-1	europe-central	ALB	ALB-europe-central	\N
@@ -266,7 +266,7 @@ INSERT INTO public."Regions" ("regionID", name, "standardizedRegion", "providerI
 -- Data for Name: SpotPricings; Type: TABLE DATA; Schema: public; Owner: kacper
 --
 
-INSERT INTO public."SpotPricings" ("pricingID", name, "regionCategory", date, price, "timestamp", "createdAt", "updatedAt", "grouping", "providerID") VALUES;
+COPY public."SpotPricings" ("pricingID", name, "regionCategory", date, price, "timestamp", "createdAt", "updatedAt", "grouping", "providerID") FROM stdin;
 3679	D4s_v3-compute-optimized	AZR-eastus	2023-11-15 22:00:00+01	0.1231	2023-11-15 22:00:00+01	2023-11-15 22:00:00+01	2023-11-16 18:59:19.896+01	CO1	AZR
 3680	D4s_v3-compute-optimized	AZR-southindia	2023-11-15 22:00:00+01	0.1571	2023-11-15 22:00:00+01	2023-11-15 22:00:00+01	2023-11-16 18:59:19.896+01	CO1	AZR
 3681	ecs.g5.xlarge-general-purpose	ALB-us-east-1	2023-11-16 01:00:00+01	0.0250	2023-11-17 21:25:25.129+01	2023-11-16 18:59:02.445+01	2023-11-17 21:25:25.131+01	GP1	ALB
