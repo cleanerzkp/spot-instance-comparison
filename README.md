@@ -34,6 +34,7 @@ This project aims to analyze and compare spot instance prices from AWS, Azure, G
 - Update `.env.example` file with necessary credentials for each cloud provider (remove .example).
 - Configure `config/dbConfig.json` with your database settings.
 - Set up `GetSpot-Service-Account.json.example` for Google Cloud Platform integration (remove .example).
+- docker-compose up --build
 
 ## Key Components
 
