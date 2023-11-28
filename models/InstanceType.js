@@ -19,11 +19,12 @@ module.exports = (sequelize) => {
     RAM_GB: DataTypes.INTEGER,
     category: DataTypes.STRING,
     comparisonGroup: DataTypes.STRING,
-    grouping: DataTypes.STRING
+    grouping: DataTypes.STRING,
+    createdAt: DataTypes.DATE,
+    updatedAt: DataTypes.DATE
   }, {
     sequelize,
-    modelName: 'InstanceType',
-    timestamps: false
+    modelName: 'InstanceType'
   });
 
   return InstanceType;
