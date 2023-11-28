@@ -7,9 +7,10 @@ services:
       - db-data:/var/lib/postgresql/data
     restart: always
     environment:
-      POSTGRES_USER: kacper
-      POSTGRES_PASSWORD: QWERTYUIOP
-      POSTGRES_DB: spot_instance_comparison
+      NODE_ENV: test
+      POSTGRES_USER: newusername
+      POSTGRES_PASSWORD: newpassword
+      POSTGRES_DB: database_test
     ports:
       - "5432:5432"
 
