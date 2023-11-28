@@ -5,7 +5,6 @@ const axios = require('axios');
 const API_KEY = process.env.GOOGLE_API_KEY; // Ensure you have GOOGLE_API_KEY in your .env file
 const SKU_ID = '4FA8-5F47-948C'; // Replace with your specific SKU ID
 
-// Define the Google Cloud Billing API URL
 const billingUrl = `https://cloudbilling.googleapis.com/v1/services/6F81-5844-456A/skus/${SKU_ID}?key=${API_KEY}`;
 
 // Function to check SKU pricing
