@@ -16,5 +16,5 @@ COPY . .
 # Expose the port the app runs on
 EXPOSE 3000
 
-# Commands to run the Sequelize migrations and seeders, then start the application
-CMD npx sequelize-cli db:migrate && npx sequelize-cli db:seed:all && node app.js
+# Use start.sh to start the application
+CMD ["sh", "start.sh"]
