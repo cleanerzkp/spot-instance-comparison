@@ -1,7 +1,7 @@
 # Spot Instance Price Comparison Project
 
 ## Overview
-This project aims to collect and compare spot instance pricing data from major cloud providers (AWS, Azure, Google Cloud, and Alibaba) and store it in a PostgreSQL database for analysis. It focuses on standardizing the data format and automating updates for current and historical pricing information, enabling objective comparisons.
+This project automates the collection and comparison of spot instance pricing data from major cloud providers (AWS, Azure, Google Cloud, and Alibaba). It stores and analyzes this data in a PostgreSQL database, focusing on standardizing the data format and keeping it current with automated updates.
 
 ## Table of Contents
 1. [Setup and Installation](#setup-and-installation)
@@ -22,40 +22,35 @@ This project aims to collect and compare spot instance pricing data from major c
 
 ### Installation Steps
 1. Clone the repository: `git clone https://github.com/cleanerzkp/spot-instance-comparison.git`
-2. Navigate to the directory and install dependencies: `cd spot-instance-comparison && npm install`
-3. Set up Docker containers: `docker-compose up --build`
+2. Navigate to the directory: `cd spot-instance-comparison`
+3. Set up and start the project using Docker: `docker-compose up --build`
 
 ## Configuration
-- Update the `.env.example` file with necessary credentials and rename it to `.env`.
-- Edit `config/config.json` to match your database settings.
-- Configure database settings in `config/config.json`.
+- Update `.env.example` with your credentials and rename it to `.env`.
+- Ensure `config/config.json` matches your database settings.
 - Copy `GetSpot-Service-Account.json.example` to `GetSpot-Service-Account.json` and add GCP service account info.
 
 ## Data Collection & Processing
-- Scripts located in `/automation-scripts` fetch pricing data from each provider.
-- `updateAll.js` runs all provider scripts and is configured as a cron job for daily updates.
-- Historical data located in `/historical-data` for some providers.
-- Test scripts in `/test(regions-and-hardware)` check data availability.
+- The `/automation-scripts` directory contains scripts to fetch daily pricing data from each provider.
+- Historical data for AWS and Alibaba is fetched and processed using scripts in the `/historical-data` directory.
 
 ## Database Structure
-- `CloudProviders`: Metadata for each cloud provider.
-- `InstanceTypes`: Normalization and classification of instances.
-- `Regions`: Mapping of region names across providers.
+- `CloudProviders`: Information about each cloud provider.
+- `InstanceTypes`: Details of instance types grouped by categories.
+- `Regions`: Mapping of regions across different providers.
 - `SpotPricings`: Stores average daily prices.
 
 ## Running the Application
-1. Navigate to `automation-scripts` and run `node updateAll.js` to update all data.
-2. Configure as a cron job for daily updates.
-3. Seeded historical data can be used from the `historical-data` folder.
+- The application, including database migrations and seeders, is automatically set up and run via Docker.
+- The `start.sh` script, executed through Docker, automates the entire setup process.
 
 ## Folder Structure and Scripts
-- `automation-scripts`: Fetch and update the latest spot prices.
-- `historical-data`: Fetch historical data for AWS and Alibaba.
+- `automation-scripts`: Scripts to update the database with the latest spot prices.
+- `historical-data`: Scripts to fetch historical data for AWS and Alibaba.
 - `test`: Test scripts and utilities.
-- `models`: Sequelize models for database structure.
-- `scripts(api-connection-test)`: Test API connections.
-- `seeders`: Scripts for initial database seeding.
-- `test(regions-and-hardware)`: Validate price history availability.
+- `models`: Sequelize models defining the database structure.
+- `seeders`: Scripts for initial data seeding.
+- `scripts(api-connection-test)`: Testing API connections to cloud providers.
 
 ## API Endpoints
 - `/providers`: Retrieves all cloud providers.
@@ -64,11 +59,8 @@ This project aims to collect and compare spot instance pricing data from major c
 - `/spot-pricings`: Retrieves spot pricing data.
 
 ## Additional Information
-- The `start.sh` script automates database setup and application launch.
-- Database setup includes seeding with provider, instance type, and region data.
-- The project is verified to work with the current Docker configuration.
-- Historical data scripts work for AWS and Alibaba.
-- For all 4 providers pricing data from the last 28 days is availiable from SpotPricings.csv which used updateAll script daily (few exceptions)
-- The `test(regions-and-hardware)` folder is crucial for ensuring data accuracy.
+- Docker automates the setup of database migrations and seeders, ensuring a streamlined installation process.
+- Historical data functionality is currently available for AWS and Alibaba.
 
 ---
+
