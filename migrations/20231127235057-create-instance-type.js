@@ -1,22 +1,30 @@
 'use strict';
 
-/** @type {import('sequelize-cli').Migration} */
 module.exports = {
-  async up (queryInterface, Sequelize) {
-    /**
-     * Add altering commands here.
-     *
-     * Example:
-     * await queryInterface.createTable('users', { id: Sequelize.INTEGER });
-     */
+  up: async (queryInterface, Sequelize) => {
+    await queryInterface.createTable('InstanceTypes', {
+      instanceID: {
+        type: Sequelize.INTEGER,
+        primaryKey: true,
+        autoIncrement: true
+      },
+      providerID: {
+        type: Sequelize.STRING,
+        references: {
+          model: 'CloudProviders',
+          key: 'providerID'
+        }
+      },
+      name: Sequelize.STRING,
+      vCPU: Sequelize.INTEGER,
+      RAM_GB: Sequelize.INTEGER,
+      category: Sequelize.STRING,
+      comparisonGroup: Sequelize.STRING,
+      grouping: Sequelize.STRING
+    });
   },
 
-  async down (queryInterface, Sequelize) {
-    /**
-     * Add reverting commands here.
-     *
-     * Example:
-     * await queryInterface.dropTable('users');
-     */
+  down: async (queryInterface, Sequelize) => {
+    await queryInterface.dropTable('InstanceTypes');
   }
 };
