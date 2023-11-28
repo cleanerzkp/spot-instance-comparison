@@ -19,7 +19,6 @@ module.exports = {
       grouping: Sequelize.STRING
     });
 
-    // If needed, create additional indices
     await queryInterface.addIndex('SpotPricings', ['name', 'regionCategory', 'date']);
   },
 
