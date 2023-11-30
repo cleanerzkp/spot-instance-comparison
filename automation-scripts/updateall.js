@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 const runAlibabaScript = require('./updateAlibabaSpotPrices');
 const runAWSScript = require('./updateAWSSpotPrices');
 const runAzureScript = require('./updateAzureSpotPrices');
