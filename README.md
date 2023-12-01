@@ -66,10 +66,7 @@ This project automates the collection and comparison of spot instance pricing da
 
 ## Google SKU Logic
 Google Cloud's spot instance pricing uniquely employs a SKU-based system, where each SKU corresponds to a specific combination of an instance type and a region. This approach differs from other providers like AWS, Azure, and Alibaba, which mainly categorize their offerings by region and instance type.
-
-### Importance of SKU Mapping
 - Every Google Cloud SKU is a unique identifier for a specific instance type in a particular region.
-- To ensure accurate data collection and comparison, it's crucial to update the SKU mapping in the project when introducing new regions or instance types for Google Cloud.
 
 ### Testing for SKU Availability
 - Before updating the SKU mappings, run the `testGCPInstancePrices.js` script in the `test(regions-and-hardware)` folder to check if the specific Google SKU (region and hardware) has price history.
@@ -81,9 +78,8 @@ Google Cloud's spot instance pricing uniquely employs a SKU-based system, where 
   - [Google Cloud SKUs](https://cloud.google.com/skus/sku-groups/compute-engine-flexible-cud-eligible-skus) - For specific SKU codes.
 
 ### Steps for Updating
-1. **Add Region/Instance to Database**: First, add the new region and instance type to the relevant database tables.
-2. **Run Test Script**: Execute `testGCPInstancePrices.js` to verify price history for the new SKUs.
-3. **Update SKU Mapping**: If the test script confirms price history, manually update the `skuToInstanceRegionMap` mapping in the `updateGCPSpotPrices.js` script with the new SKU codes.
-4. **Test and Validate**: After updating the SKU mapping, run the script again to ensure it correctly fetches and processes the pricing data.
+1. **Run Test Script**: Execute `testGCPInstancePrices.js` with your SKU codes to verify if there's price history for the new SKUs.
+2. **Add Region/Instance to Database**: If the test script confirms price history, add the new region to the `Regions` table and the new instance type to the `InstanceTypes` table in the database.
+3. **Update SKU Mapping**: Manually update the `skuToInstanceRegionMap` mapping in the `updateGCPSpotPrices.js` script with the new SKU codes.
 
 By following these steps, the project remains current with Google Cloud's offerings and maintains accurate pricing comparisons across different cloud providers.
