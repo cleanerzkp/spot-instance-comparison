@@ -12,6 +12,7 @@ This project automates the collection and comparison of spot instance pricing da
 6. [Folder Structure and Scripts](#folder-structure-and-scripts)
 7. [API Endpoints](#api-endpoints)
 8. [Additional Information](#additional-information)
+9. [Google SKU Logic](#google-sku-logic)
 
 ## Setup and Installation
 ### Prerequisites
@@ -61,6 +62,26 @@ This project automates the collection and comparison of spot instance pricing da
 ## Additional Information
 - Docker automates the setup of database migrations and seeders, ensuring a streamlined installation process.
 - Historical data functionality is currently available for AWS and Alibaba.
+### Overview
+Google Cloud's spot instance pricing uniquely employs a SKU-based system, where each SKU corresponds to a specific combination of an instance type and a region. This approach differs from other providers like AWS, Azure, and Alibaba, which mainly categorize their offerings by region and instance type.
 
----
+### Importance of SKU Mapping
+- Every Google Cloud SKU is a unique identifier for a specific instance type in a particular region.
+- To ensure accurate data collection and comparison, it's crucial to update the SKU mapping in the project when introducing new regions or instance types for Google Cloud.
 
+### Testing for SKU Availability
+- Before updating the SKU mappings, run the `testGCPInstancePrices.js` script in the `test(regions-and-hardware)` folder to check if the specific Google SKU (region and hardware) has price history.
+- The script tests and returns recent prices for defined SKUs. If it finds prices, it indicates the SKU is valid and has pricing data.
+
+### Updating SKU Mappings
+- To add a new region or instance type for Google Cloud, update the `skuToInstanceRegionMap` in the `updateGCPSpotPrices.js` script within the `automation-scripts` folder with the corresponding SKU.
+- Find appropriate SKU codes for new regions or instance types at:
+  - [Google Cloud SKUs](https://cloud.google.com/skus/sku-groups/compute-engine-flexible-cud-eligible-skus) - For specific SKU codes.
+
+### Steps for Updating
+1. **Add Region/Instance to Database**: First, add the new region and instance type to the relevant database tables.
+2. **Run Test Script**: Execute `testGCPInstancePrices.js` to verify price history for the new SKUs.
+3. **Update SKU Mapping**: If the test script confirms price history, manually update the `skuToInstanceRegionMap` mapping in the `updateGCPSpotPrices.js` script with the new SKU codes.
+4. **Test and Validate**: After updating the SKU mapping, run the script again to ensure it correctly fetches and processes the pricing data.
+
+By following these steps, the project remains current with Google Cloud's offerings and maintains accurate pricing comparisons across different cloud providers.
