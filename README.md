@@ -62,7 +62,9 @@ This project automates the collection and comparison of spot instance pricing da
 ## Additional Information
 - Docker automates the setup of database migrations and seeders, ensuring a streamlined installation process.
 - Historical data functionality is currently available for AWS and Alibaba.
-### Overview
+
+
+## Google SKU Logic
 Google Cloud's spot instance pricing uniquely employs a SKU-based system, where each SKU corresponds to a specific combination of an instance type and a region. This approach differs from other providers like AWS, Azure, and Alibaba, which mainly categorize their offerings by region and instance type.
 
 ### Importance of SKU Mapping
