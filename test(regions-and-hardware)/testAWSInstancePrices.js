@@ -1,31 +1,27 @@
 require('dotenv').config({ path: '../.env' });
 
-
 const { exec } = require('child_process');
-const db = require('../models');
 
-// List of AWS available regions (update this list as needed)
-const availableAwsRegions = ['us-east-1', 'us-west-2', 'eu-central-1', 'ap-south-1']; // ... Add more
+// Manually define the instances and regions
+const instances = ['t4g.xlarge', 'c6a.xlarge'];
+const regions = ['us-east-1', 'eu-west-1'];
 
 async function fetchAWSSpotPrices(instanceType, region) {
     return new Promise((resolve, reject) => {
-        if (!availableAwsRegions.includes(region)) {
-            return reject(new Error(`Invalid AWS region: ${region}`));
-        }
-        const cmd = `aws ec2 describe-spot-price-history --instance-types ${instanceType} --region ${region} --max-items 1000 --product-descriptions "Linux/UNIX" --output json`.trim();
-        
-
-        exec(cmd, (error, stdout, stderr) => {
+        exec(`aws ec2 describe-spot-price-history --instance-types ${instanceType} --region ${region} --max-items 1000 --product-descriptions "Linux/UNIX" --output json`, (error, stdout, stderr) => {
             if (error || stderr) {
-                return reject(new Error(`Error checking price history for ${instanceType} in ${region}: ${error?.message || stderr}`));
+                console.error(`Error: ${error?.message || stderr}`);
+                return reject(new Error(error?.message || stderr));
             }
+
+            // Parse the CLI output to JSON
             const result = JSON.parse(stdout);
             return resolve(result);
         });
     });
 }
 
-async function checkPriceHistory(instanceType, region) {
+async function checkAWSSpotPriceHistory(instanceType, region) {
     try {
         const result = await fetchAWSSpotPrices(instanceType, region);
         const spotPriceHistory = result.SpotPriceHistory;
@@ -39,34 +35,9 @@ async function checkPriceHistory(instanceType, region) {
     }
 }
 
-async function fetchRegionsAndInstanceTypes() {
-    const awsRegions = await db.Region.findAll({
-        attributes: ['name'],
-        where: { providerID: 'AWS' }
+// Check price history for each instance type and region combination
+instances.forEach(instanceType => {
+    regions.forEach(region => {
+        checkAWSSpotPriceHistory(instanceType, region);
     });
-    const awsInstanceTypes = await db.InstanceType.findAll({
-        attributes: ['name'],
-        where: { providerID: 'AWS' }
-    });
-
-    return {
-        regions: awsRegions.map(r => r.name),
-        instances: awsInstanceTypes.map(i => i.name)
-    };
-}
-
-async function main() {
-    try {
-        const { regions, instances } = await fetchRegionsAndInstanceTypes();
-
-        for (const instanceType of instances) {
-            for (const region of regions) {
-                await checkPriceHistory(instanceType, region);
-            }
-        }
-    } catch (error) {
-        console.error(`Global error: ${error.message}`);
-    }
-}
-
-main();
+});

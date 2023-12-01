@@ -87,15 +87,3 @@ const runAlibabaScript = async () => {
   await saveToDatabase(mappedData);
   console.log('Alibaba data saved successfully');
 };
-
-module.exports = { runAlibabaScript };
-
-const { runAlibabaScript } = require('./ALB');
-
-const runAllScripts = async () => {
-  await runAlibabaScript();
-};
-
-runAllScripts()
-  .then(() => console.log('All data saved successfully'))
-  .catch(err => console.error('Error saving data:', err));

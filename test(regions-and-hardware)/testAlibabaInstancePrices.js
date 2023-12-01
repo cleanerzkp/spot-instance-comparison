@@ -19,8 +19,8 @@ async function checkAlibabaSpotPriceHistory() {
         }
 
         const client = new RPCClient({
-            accessKeyId: ALIBABA_ACCESS_KEY_ID,
-            accessKeySecret: ALIBABA_ACCESS_KEY_SECRET,
+            accessKeyId: process.env.ALIBABA_ACCESS_KEY_ID,
+            accessKeySecret: process.env.ALIBABA_ACCESS_KEY_SECRET,
             endpoint: endpoint,
             apiVersion: '2014-05-26'
         });
