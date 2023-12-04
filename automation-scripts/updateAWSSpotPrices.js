@@ -10,7 +10,7 @@ async function fetchData() {
 
   return {
     instanceTypes: instanceTypes.map(it => ({ name: it.name, category: it.category, grouping: it.grouping })),
-    regions: regions.map(r => ({ name: r.name, standardizedRegion: r.standardizedRegion })) // Including standardizedRegion
+    regions: regions.map(r => ({ name: r.name, standardizedRegion: r.standardizedRegion }))
   };  
 }
 
@@ -32,17 +32,31 @@ async function fetchAWSSpotPrices(instanceType, region) {
 }
 
 async function insertIntoDB(spotPriceHistory, instanceTypeObj, region) {
+
   for (const spotPrice of spotPriceHistory) {
-    await SpotPricing.create({
-      name: instanceTypeObj.name,
-      regionName: region.standardizedRegion, // Using the standardized region name
-      date: new Date(spotPrice.Timestamp),
-      price: parseFloat(spotPrice.SpotPrice),
-      timestamp: new Date(),
-      grouping: instanceTypeObj.grouping,
-      providerID: 'AWS'
+    const existing = await SpotPricing.findOne({
+      where: {
+        name: instanceTypeObj.name,
+        regionName: region.standardizedRegion, 
+        date: new Date(spotPrice.Timestamp)  
+      }
     });
+
+    if (!existing) {  
+      
+      await SpotPricing.create({ 
+        name: instanceTypeObj.name,
+        regionName: region.standardizedRegion,
+        date: new Date(spotPrice.Timestamp),
+          
+      });
+    } else {
+      
+      console.log('Record already exists, skipping');  
+    }
+
   }
+
 }
 
 async function processSpotPrices(instanceTypeObj, region) {
