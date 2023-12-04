@@ -51,65 +51,39 @@ async function fetchAlibabaSpotPrices(instanceType, region) {
     }
 }
 
-async function insertIntoDB(prices, instanceTypeObj, region) {
-    const currentTime = new Date();
-
-    for (const [date, price] of Object.entries(prices)) {
-        const existingRecord = await SpotPricing.findOne({
-            where: {
-                name: `${instanceTypeObj.name}-${instanceTypeObj.category}`,
-                regionCategory: `ALB-${region}`,
-                date: new Date(date)
-            }
-        });
-
-        if (existingRecord) {
-            await existingRecord.update({ price, timestamp: currentTime });
-        } else {
-            await SpotPricing.create({
-                name: `${instanceTypeObj.name}-${instanceTypeObj.category}`,
-                regionCategory: `ALB-${region}`,
-                date: new Date(date),
-                price,
-                timestamp: currentTime,
-                grouping: instanceTypeObj.grouping,
-                providerID: 'ALB'
-            });
-        }
-    }
+async function insertIntoDB(spotPriceHistory, instanceTypeObj, region) {
+  for (const spotPrice of spotPriceHistory) {
+    await SpotPricing.create({
+      name: `${instanceTypeObj.name}-${instanceTypeObj.category}`,
+      regionName: region,
+      date: new Date(spotPrice.Timestamp),
+      price: parseFloat(spotPrice.SpotPrice),
+      timestamp: new Date(),
+      grouping: instanceTypeObj.grouping,
+      providerID: 'ALB'
+    });
+  }
 }
-async function calculateDailyAverage(instanceTypeObj, region) {
+
+async function processSpotPrices(instanceTypeObj, region) {
   const spotPriceHistory = await fetchAlibabaSpotPrices(instanceTypeObj, region);
   if (spotPriceHistory.length === 0) {
     console.log(`No prices available for ${instanceTypeObj.name} in ${region}`);
     return;
   }
-  const pricesByDay = {};
-  const dailyAverages = {};
-  spotPriceHistory.forEach(spotPrice => {
-    const date = new Date(spotPrice.Timestamp);
-    const standardizedDate = date.toISOString().split('T')[0];
-    if (!pricesByDay[standardizedDate]) pricesByDay[standardizedDate] = [];
-    pricesByDay[standardizedDate].push(parseFloat(spotPrice.SpotPrice));
-  });
-  for (const date in pricesByDay) {
-    const prices = pricesByDay[date];
-    const sum = prices.reduce((acc, price) => acc + price, 0);
-    const average = sum / prices.length;
-    dailyAverages[date] = average;
-  }
-  await insertIntoDB(dailyAverages, instanceTypeObj, region);
+  
+  await insertIntoDB(spotPriceHistory, instanceTypeObj, region);
 }
 
 async function main() {
   const { instanceTypes, regions } = await fetchData();
   for (const instanceTypeObj of instanceTypes) {
     for (const region of regions) {
-      await calculateDailyAverage(instanceTypeObj, region);
+      await processSpotPrices(instanceTypeObj, region);
     }
   }
 }
-
-module.exports = async function runAlibabaScript() {
-    await main();
-}
+main();
+// module.exports = async function runAlibabaScript() {
+//   await main();
+// }

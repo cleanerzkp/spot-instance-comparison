@@ -11,7 +11,7 @@
     "username": "newusername",
     "password": "newpassword",
     "database": "database_test",
-    "host": "db",
+    "host": "127.0.0.1",
     "dialect": "postgres"
   },
   "production": {
