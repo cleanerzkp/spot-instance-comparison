@@ -10,7 +10,7 @@ module.exports = (sequelize) => {
       autoIncrement: true
     },
     name: DataTypes.STRING,
-    regionCategory: DataTypes.STRING,
+    regionName: DataTypes.STRING,
     date: DataTypes.DATE,
     price: DataTypes.DECIMAL(10, 4),
     timestamp: DataTypes.DATE,
@@ -24,7 +24,7 @@ module.exports = (sequelize) => {
     uniqueKeys: {
       unique_tag: {
         customIndex: true,
-        fields: ['name', 'regionCategory', 'date']
+        fields: ['name', 'regionName', 'date']
       }
     }
   });

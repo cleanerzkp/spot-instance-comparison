@@ -1,5 +1,3 @@
-'use strict';
-
 module.exports = {
   up: async (queryInterface, Sequelize) => {
     await queryInterface.createTable('SpotPricings', {
@@ -9,7 +7,7 @@ module.exports = {
         autoIncrement: true
       },
       name: Sequelize.STRING,
-      regionCategory: Sequelize.STRING,
+      regionName: Sequelize.STRING,
       date: Sequelize.DATE,
       price: Sequelize.DECIMAL(10, 4),
       timestamp: Sequelize.DATE,
@@ -19,7 +17,7 @@ module.exports = {
       grouping: Sequelize.STRING
     });
 
-    await queryInterface.addIndex('SpotPricings', ['name', 'regionCategory', 'date']);
+    await queryInterface.addIndex('SpotPricings', ['name', 'regionName', 'date']);
   },
 
   down: async (queryInterface, Sequelize) => {
