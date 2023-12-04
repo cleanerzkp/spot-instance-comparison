@@ -10,18 +10,13 @@ async function fetchData() {
 
   return {
     instanceTypes: instanceTypes.map(it => ({ name: it.name, category: it.category, grouping: it.grouping })),
-    regions: regions.map(r => r.name)
+    regions: regions.map(r => ({ name: r.name, standardizedRegion: r.standardizedRegion })) // Including standardizedRegion
   };  
 }
 
 async function fetchAWSSpotPrices(instanceType, region) {
   return new Promise((resolve, reject) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(today.getDate() + 1);  
-
-    exec(`aws ec2 describe-spot-price-history --instance-types ${instanceType.name} --region ${region} --start-time ${today.toISOString()} --end-time ${tomorrow.toISOString()} --max-items 1000 --product-descriptions "Linux/UNIX" --output json`, (error, stdout, stderr) => {
+    exec(`aws ec2 describe-spot-price-history --instance-types ${instanceType.name} --region ${region.name} --start-time $(date -u +"%Y-%m-%dT00:00:00Z") --end-time $(date -u +"%Y-%m-%dT%H:%M:%SZ") --product-descriptions "Linux/UNIX" --output json`, (error, stdout, stderr) => {
       if (error) {
         console.error(`Error: ${error.message}`);
         return reject(error);
@@ -31,87 +26,46 @@ async function fetchAWSSpotPrices(instanceType, region) {
         return reject(new Error(stderr));
       }
       const result = JSON.parse(stdout);
-      return resolve(result);
+      return resolve(result.SpotPriceHistory);
     });
   });
 }
 
-async function insertIntoDB(dailyAverages, instanceTypeObj, region) {
-  const currentTime = new Date();
-
-  for (const date in dailyAverages) {
-    const formattedDate = new Date(date);
-    formattedDate.setHours(0, 0, 0, 0);  
-    const existingRecord = await SpotPricing.findOne({
-        where: {
-            name: `${instanceTypeObj.name}-${instanceTypeObj.category}`,
-            regionCategory: `AWS-${region}`,
-            date: formattedDate
-        }
+async function insertIntoDB(spotPriceHistory, instanceTypeObj, region) {
+  for (const spotPrice of spotPriceHistory) {
+    await SpotPricing.create({
+      name: instanceTypeObj.name,
+      regionName: region.standardizedRegion, // Using the standardized region name
+      date: new Date(spotPrice.Timestamp),
+      price: parseFloat(spotPrice.SpotPrice),
+      timestamp: new Date(),
+      grouping: instanceTypeObj.grouping,
+      providerID: 'AWS'
     });
-
-    if (existingRecord) {
-        await existingRecord.update({ price: dailyAverages[date], timestamp: currentTime });
-    } else {
-        await SpotPricing.create({
-            name: `${instanceTypeObj.name}-${instanceTypeObj.category}`,
-            regionCategory: `AWS-${region}`,
-            date: formattedDate,
-            price: dailyAverages[date],
-            timestamp: currentTime,
-            grouping: instanceTypeObj.grouping,
-            providerID: 'AWS'
-        });
-    }
   }
 }
 
-
-async function calculateDailyAverage(instanceTypeObj, region) {
+async function processSpotPrices(instanceTypeObj, region) {
   try {
-    const result = await fetchAWSSpotPrices(instanceTypeObj, region);
-    const spotPriceHistory = result.SpotPriceHistory;
-
+    const spotPriceHistory = await fetchAWSSpotPrices(instanceTypeObj, region);
     if (spotPriceHistory.length === 0) {
-      console.log(`No prices available for ${instanceTypeObj.name} in ${region}`);
+      console.log(`No prices available for ${instanceTypeObj.name} in ${region.name}`);
       return;
     }
-
-    const pricesByDay = {};
-    const dailyAverages = {};
-
-    spotPriceHistory.forEach(spotPrice => {
-      const date = new Date(spotPrice.Timestamp).toISOString().split('T')[0];
-      if (!pricesByDay[date]) {
-        pricesByDay[date] = [];
-      }
-      pricesByDay[date].push(parseFloat(spotPrice.SpotPrice));
-    });
-
-    for (const date in pricesByDay) {
-      const prices = pricesByDay[date];
-      const sum = prices.reduce((acc, price) => acc + price, 0);
-      const average = sum / prices.length;
-      dailyAverages[date] = average;
-    }
-
-    await insertIntoDB(dailyAverages, instanceTypeObj, region);
+  
+    await insertIntoDB(spotPriceHistory, instanceTypeObj, region);
   } catch (error) {
-    console.error('Error calculating daily average:', error.message);
+    console.error('Error processing spot prices:', error.message);
   }
 }
 
 async function main() {
   const { instanceTypes, regions } = await fetchData();
-  instanceTypes.forEach(instanceTypeObj => {
-    regions.forEach(region => {
-      calculateDailyAverage(instanceTypeObj, region);
-    });
-  });
+  for (const instanceTypeObj of instanceTypes) {
+    for (const region of regions) {
+      await processSpotPrices(instanceTypeObj, region);
+    }
+  }
 }
 
-async function runAWSScript() {
-  await main();
-}
-
-module.exports = runAWSScript;
+main();
