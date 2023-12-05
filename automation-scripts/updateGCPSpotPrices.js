@@ -6,20 +6,20 @@ const { SpotPricing, InstanceType, Region } = db;
 
 const skuToInstanceRegionMap = {
     // c2-standard-4 SKUs mapping
-    'D276-7CD3-D61E': { instanceType: 'c2-standard-4', region: 'us-east4' }, //Virginia
-    '0CB5-FB1A-2C2A': { instanceType: 'c2-standard-4', region: 'us-west2' }, //Los Angeles
-    'AB94-9F50-2B3C': { instanceType: 'c2-standard-4', region: 'europe-central1' }, //Warsaw
-    'DDBE-FFEB-7E00': { instanceType: 'c2-standard-4', region: 'middleeast-north1' }, //Israel
-    '406A-AA4B-1013': { instanceType: 'c2-standard-4', region: 'asia-south1' }, //Mumbai
+    'D276-7CD3-D61E': { instanceType: 'c2-standard-4', region: 'us-east' }, // Virginia (us-east4)
+    '0CB5-FB1A-2C2A': { instanceType: 'c2-standard-4', region: 'us-west' }, // Los Angeles (us-west2)
+    'AB94-9F50-2B3C': { instanceType: 'c2-standard-4', region: 'europe-central' }, // Warsaw (europe-central1)
+    'DDBE-FFEB-7E00': { instanceType: 'c2-standard-4', region: 'near-east' }, // Israel (middleeast-north1)
+    '406A-AA4B-1013': { instanceType: 'c2-standard-4', region: 'asia' }, // Mumbai (asia-south1)
     //https://gcloud-compute.com/c2-standard-4.html to see avaialiblity of regions/skus 
 
     
     // e2-standard-4 SKUs mapping
-    'D5C5-E209-22D3': { instanceType: 'e2-standard-4', region: 'us-east4' }, //Virginia
-    '00FD-B743-831B': { instanceType: 'e2-standard-4', region: 'us-west2' }, //Los Angeles
-    '955B-B00E-ED15': { instanceType: 'e2-standard-4', region: 'europe-central1' }, //Warsaw
-    '41F4-F6BE-4AF2': { instanceType: 'e2-standard-4', region: 'middleeast-north1' }, //Israel
-    'DFC1-04D4-B4A1': { instanceType: 'e2-standard-4', region: 'asia-south1' }, //Mumbai
+  'D5C5-E209-22D3': { instanceType: 'e2-standard-4', region: 'us-east' }, // Virginia (us-east4)
+  '00FD-B743-831B': { instanceType: 'e2-standard-4', region: 'us-west' }, // Los Angeles (us-west2)
+  '955B-B00E-ED15': { instanceType: 'e2-standard-4', region: 'europe-central' }, // Warsaw (europe-central1)
+  '41F4-F6BE-4AF2': { instanceType: 'e2-standard-4', region: 'near-east' }, // Israel (middleeast-north1)
+  'DFC1-04D4-B4A1': { instanceType: 'e2-standard-4', region: 'asia' } // Mumbai (asia-south1)
     //https://cloud.google.com/skus/sku-groups/compute-engine-flexible-cud-eligible-skus  for specific sku codes
 
 };
