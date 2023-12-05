@@ -8,7 +8,7 @@ async function fetchData() {
 
     return {
       instanceTypes: instanceTypes.map(it => ({ id: it.id, name: it.name, category: it.category, grouping: it.grouping })),
-      regions: regions.map(r => r.name)
+      regions: regions.map(r => ({ name: r.name, standardizedRegion: r.standardizedRegion })) // Using standardizedRegion
     };
   } catch (error) {
     console.error('Error fetching data from database:', error.message);
@@ -20,7 +20,7 @@ async function fetchAzurePrices(instanceType, region) {
   const apiUrl = 'https://prices.azure.com/api/retail/prices';
   const params = {
     'api-version': '2023-01-01-preview',
-    '$filter': `armRegionName eq '${region}' and armSkuName eq 'Standard_${instanceType}'`,
+    '$filter': `armRegionName eq '${region.name}' and armSkuName eq 'Standard_${instanceType}'`,
     '$top': 1000
   };
 
@@ -28,7 +28,7 @@ async function fetchAzurePrices(instanceType, region) {
     const response = await axios.get(apiUrl, { params });
     return response.data && response.data.Items ? response.data.Items : [];
   } catch (error) {
-    console.error(`Error fetching prices for ${instanceType} in ${region}:`, error.message);
+    console.error(`Error fetching prices for ${instanceType} in ${region.name}:`, error.message);
     return [];
   }
 }
@@ -39,7 +39,7 @@ async function insertIntoDB(prices, instanceTypeObj, region) {
   for (const price of prices) {
     await db.SpotPricing.create({
       name: instanceTypeObj.name,
-      regionName: region,
+      regionName: region.standardizedRegion, // Using standardizedRegion
       price: parseFloat(price.retailPrice),
       date: currentTime,
       timestamp: currentTime,
@@ -65,13 +65,13 @@ async function main() {
         const lowestPrice = prices.reduce((min, p) => parseFloat(p.retailPrice) < parseFloat(min.retailPrice) ? p : min, prices[0]);
         await insertIntoDB([lowestPrice], instanceTypeObj, region);
       } else {
-        console.log(`No prices available for ${instanceTypeObj.name} in ${region}`);
+        console.log(`No prices available for ${instanceTypeObj.name} in ${region.standardizedRegion}`);
       }
     }
   }
 }
 
-main().catch(error => console.error('Error in main function:', error.message));async function runAzureScript() {
+async function runAzureScript() {
   await main();
 }
 
