@@ -10,13 +10,20 @@ async function fetchData() {
 
   return {
     instanceTypes: instanceTypes.map(it => ({ name: it.name, category: it.category, grouping: it.grouping })),
-    regions: regions.map(r => r.name)
-  };  
+    regions: regions.map(r => ({ name: r.name, standardizedRegion: r.standardizedRegion }))
+  };
 }
 
 async function fetchAWSSpotPrices(instanceType, region) {
   return new Promise((resolve, reject) => {
-    exec(`aws ec2 describe-spot-price-history --instance-types ${instanceType.name} --region ${region} --max-items 1000 --product-descriptions "Linux/UNIX" --output json`, (error, stdout, stderr) => {
+    const endTime = new Date();
+    const startTime = new Date();
+    startTime.setDate(startTime.getDate() - 30);
+
+    const startTimeFormatted = startTime.toISOString().split('.')[0] + 'Z';
+    const endTimeFormatted = endTime.toISOString().split('.')[0] + 'Z';
+
+    exec(`aws ec2 describe-spot-price-history --instance-types ${instanceType.name} --region ${region.name} --start-time "${startTimeFormatted}" --end-time "${endTimeFormatted}" --product-descriptions "Linux/UNIX" --output json`, (error, stdout, stderr) => {
       if (error) {
         console.error(`Error: ${error.message}`);
         return reject(error);
@@ -26,76 +33,58 @@ async function fetchAWSSpotPrices(instanceType, region) {
         return reject(new Error(stderr));
       }
       const result = JSON.parse(stdout);
-      return resolve(result);
+      return resolve(result.SpotPriceHistory);
     });
   });
 }
-async function insertIntoDB(dailyAverages, instanceTypeObj, region) {
-  for (const date in dailyAverages) {
-    const standardizedDate = new Date(date);
-    standardizedDate.setHours(9, 0, 0, 0);  // Set time to 9 AM
 
-    const existingRecord = await SpotPricing.findOne({
+async function insertIntoDB(spotPriceHistory, instanceTypeObj, region) {
+  for (const spotPrice of spotPriceHistory) {
+    const existing = await SpotPricing.findOne({
       where: {
-        name: `${instanceTypeObj.name}-${instanceTypeObj.category}`,
-        date: standardizedDate,
-        regionCategory: `AWS-${region}`
+        name: instanceTypeObj.name,
+        regionName: region.standardizedRegion,
+        date: new Date(spotPrice.Timestamp)
       }
     });
 
-    const price = dailyAverages[date];
-
-    if (existingRecord) {
-      await existingRecord.update({ price: price });
-    } else {
+    if (!existing) {
       await SpotPricing.create({
-        name: `${instanceTypeObj.name}-${instanceTypeObj.category}`,
-        regionCategory: `AWS-${region}`,
-        date: standardizedDate,
-        price: price,
+        name: instanceTypeObj.name,
+        regionName: region.standardizedRegion,
+        date: new Date(spotPrice.Timestamp),
+        price: parseFloat(spotPrice.SpotPrice),
         timestamp: new Date(),
         grouping: instanceTypeObj.grouping,
         providerID: 'AWS'
       });
+    } else {
+      console.log('Record already exists, skipping');
     }
   }
 }
 
-async function calculateDailyAverage(instanceTypeObj, region) {
+async function processSpotPrices(instanceTypeObj, region) {
   try {
-    const result = await fetchAWSSpotPrices(instanceTypeObj, region);
-    const spotPriceHistory = result.SpotPriceHistory;
-
-    const pricesByDay = {};
-    spotPriceHistory.forEach(spotPrice => {
-      const date = new Date(spotPrice.Timestamp);
-      date.setUTCHours(9, 0, 0, 0);  // Standardize to 9 AM UTC
-      const standardizedDate = date.toISOString().split('T')[0];
-      if (!pricesByDay[standardizedDate]) pricesByDay[standardizedDate] = [];
-      pricesByDay[standardizedDate].push(parseFloat(spotPrice.SpotPrice));
-    });
-
-    const dailyAverages = {};
-    for (const date in pricesByDay) {
-      const prices = pricesByDay[date];
-      const sum = prices.reduce((acc, price) => acc + price, 0);
-      const average = sum / prices.length;
-      dailyAverages[date] = average;
+    const spotPriceHistory = await fetchAWSSpotPrices(instanceTypeObj, region);
+    if (spotPriceHistory.length === 0) {
+      console.log(`No prices available for ${instanceTypeObj.name} in ${region.name}`);
+      return;
     }
 
-    await insertIntoDB(dailyAverages, instanceTypeObj, region);
+    await insertIntoDB(spotPriceHistory, instanceTypeObj, region);
   } catch (error) {
-    console.error('Error calculating daily average:', error.message);
+    console.error('Error processing spot prices:', error.message);
   }
 }
 
 async function main() {
   const { instanceTypes, regions } = await fetchData();
-  instanceTypes.forEach(instanceTypeObj => {
-    regions.forEach(region => {
-      calculateDailyAverage(instanceTypeObj, region);
-    });
-  });
+  for (const instanceTypeObj of instanceTypes) {
+    for (const region of regions) {
+      await processSpotPrices(instanceTypeObj, region);
+    }
+  }
 }
 
 main();
