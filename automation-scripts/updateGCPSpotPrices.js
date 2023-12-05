@@ -25,24 +25,17 @@ const skuToInstanceRegionMap = {
 };
 
 async function authenticate() {
-    try {
-        const credentialsPath = path.resolve(__dirname, '../GetSpot-Service-Account.json');
-        const auth = new GoogleAuth({
-            keyFilename: credentialsPath,
-            scopes: ['https://www.googleapis.com/auth/cloud-platform'],
-        });
-        const authClient = await auth.getClient();
-        return authClient;
-    } catch (error) {
-        console.error("Error in authentication:", error);
-        throw error;
-    }
+    const credentialsPath = path.resolve(__dirname, '../GetSpot-Service-Account.json');
+    const auth = new GoogleAuth({
+        keyFilename: credentialsPath,
+        scopes: ['https://www.googleapis.com/auth/cloud-platform'],
+    });
+    return auth.getClient();
 }
 
 async function fetchGCPSpotPrices(authClient) {
     const serviceId = '6F81-5844-456A';
     const url = `https://cloudbilling.googleapis.com/v1/services/${serviceId}/skus`;
-
     const accessToken = await authClient.getAccessToken();
 
     let items = [];
@@ -51,9 +44,7 @@ async function fetchGCPSpotPrices(authClient) {
     do {
         const params = nextPageToken ? { pageToken: nextPageToken } : {};
         const response = await axios.get(url, {
-            headers: {
-                Authorization: `Bearer ${accessToken.token}`,
-            },
+            headers: { Authorization: `Bearer ${accessToken.token}` },
             params: params
         });
 
@@ -61,77 +52,52 @@ async function fetchGCPSpotPrices(authClient) {
         nextPageToken = response.data.nextPageToken;
     } while (nextPageToken);
 
-    const prices = items.filter(item => Object.keys(skuToInstanceRegionMap).includes(item.skuId))
-                        .map(item => {
-                            const mappedData = skuToInstanceRegionMap[item.skuId];
-                            const pricingInfo = item.pricingInfo[0];
-                            const unitPrice = pricingInfo.pricingExpression.tieredRates[0].unitPrice;
-                            return {
-                                instanceType: mappedData.instanceType,
-                                region: mappedData.region,
-                                price: parseFloat(`${unitPrice.units}.${unitPrice.nanos}`),
-                                currency: unitPrice.currencyCode
-                            };
-                        });
-
-    return prices;
+    return items.filter(item => Object.keys(skuToInstanceRegionMap).includes(item.skuId))
+                .map(item => {
+                    const mappedData = skuToInstanceRegionMap[item.skuId];
+                    const pricingInfo = item.pricingInfo[0];
+                    const unitPrice = pricingInfo.pricingExpression.tieredRates[0].unitPrice;
+                    return {
+                        instanceType: mappedData.instanceType,
+                        region: mappedData.region,
+                        price: parseFloat(`${unitPrice.units}.${unitPrice.nanos}`),
+                        timestamp: new Date() // Current time
+                    };
+                });
 }
 
 async function insertIntoDB(data) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const instanceTypes = await InstanceType.findAll({
-        where: { providerID: 'GCP' }
-    });
-    const regions = await Region.findAll({
-        where: { providerID: 'GCP' }
-    });
-
     for (const entry of data) {
-        const instanceTypeObj = instanceTypes.find(it => it.name.includes(entry.instanceType));
-        const regionObj = regions.find(r => r.standardizedRegion.includes(entry.region));
+        const instanceTypeObj = await InstanceType.findOne({ where: { name: entry.instanceType, providerID: 'GCP' } });
+        const regionObj = await Region.findOne({ where: { standardizedRegion: entry.region, providerID: 'GCP' } });
 
-        const name = instanceTypeObj ? `${instanceTypeObj.name}-${instanceTypeObj.category}` : entry.instanceType;
-        const regionCategory = regionObj ? `GCP-${regionObj.standardizedRegion}` : `GCP-${entry.region}`;
-
-        let grouping = '';
-        if (instanceTypeObj && instanceTypeObj.grouping) {
-            grouping += instanceTypeObj.grouping;
-        }
-        if (regionObj && regionObj.grouping) {
-            grouping += `-${regionObj.grouping}`;
-        }
-        grouping = grouping || 'unknown-grouping';
+        const name = instanceTypeObj ? instanceTypeObj.name : entry.instanceType;
+        const regionName = regionObj ? regionObj.standardizedRegion : entry.region;
+        const grouping = instanceTypeObj ? instanceTypeObj.grouping : 'unknown-grouping';
 
         const existingRecord = await SpotPricing.findOne({
             where: {
                 name: name,
-                regionCategory: regionCategory,
-                date: today
+                regionName: regionName,
+                timestamp: entry.timestamp
             }
         });
 
-        if (existingRecord) {
-            await existingRecord.update({
-                price: entry.price,
-                timestamp: new Date(),
-                grouping: grouping,
-            });
-        } else {
+        if (!existingRecord) {
             await SpotPricing.create({
                 name: name,
-                regionCategory: regionCategory,
-                date: today,
+                regionName: regionName,
+                date: entry.timestamp,
                 price: entry.price,
-                timestamp: new Date(),
-                grouping: grouping, 
+                timestamp: entry.timestamp,
+                grouping: grouping,
                 providerID: 'GCP'
             });
+        } else {
+            console.log(`Record for ${name} in ${regionName} already exists, skipping`);
         }
     }
 }
-
 
 async function main() {
     try {
@@ -146,6 +112,4 @@ async function main() {
     }
 }
 
-module.exports = async function runGCPScript() {
-    await main();
-}
+main();
