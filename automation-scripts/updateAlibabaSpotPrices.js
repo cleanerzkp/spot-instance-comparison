@@ -30,9 +30,9 @@ async function fetchAlibabaSpotPrices(instanceType, region) {
         opts: { timeout: 10000 }
     });
 
-    const endTime = new Date(); 
-    const startTime = new Date(endTime);
-    startTime.setDate(startTime.getDate() - 1); 
+    const currentTime = new Date();
+    const startTime = new Date(currentTime);
+    startTime.setMinutes(0, 0, 0);
 
     try {
       const params = {
@@ -40,11 +40,11 @@ async function fetchAlibabaSpotPrices(instanceType, region) {
         NetworkType: 'vpc',
         InstanceType: instanceType.name,
         StartTime: formatDate(startTime),
-        EndTime: formatDate(endTime),
-        MaxResults: 500,
+        EndTime: formatDate(currentTime),
+        MaxResults: 1, // Fetch only the most recent entry
       };
       const result = await client.request('DescribeSpotPriceHistory', params);
-      return result.SpotPrices.SpotPriceType || [];
+      return result.SpotPrices.SpotPriceType.slice(0, 1) || [];
     } catch (error) {
       console.error(`Error fetching Alibaba Spot Prices for ${region.name} ${instanceType.name}:`, error.message);
       return [];
@@ -52,28 +52,21 @@ async function fetchAlibabaSpotPrices(instanceType, region) {
 }
 
 async function insertIntoDB(spotPriceHistory, instanceTypeObj, region) {
-  for (const spotPrice of spotPriceHistory) {
-    const existing = await SpotPricing.findOne({
-      where: {
-        name: instanceTypeObj.name,
-        regionName: region.standardizedRegion,
-        date: new Date(spotPrice.Timestamp)
-      }
-    });
+  const currentTime = new Date();
 
-    if (!existing) {
-      await SpotPricing.create({
-        name: instanceTypeObj.name,
-        regionName: region.standardizedRegion,
-        date: new Date(spotPrice.Timestamp),
-        price: parseFloat(spotPrice.SpotPrice),
-        timestamp: new Date(),
-        grouping: instanceTypeObj.grouping,
-        providerID: 'ALB'
-      });
-    } else {
-      console.log('Record already exists, skipping');
-    }
+  if (spotPriceHistory.length > 0) {
+    const spotPrice = spotPriceHistory[0];
+    await SpotPricing.create({
+      name: instanceTypeObj.name,
+      regionName: region.standardizedRegion,
+      date: currentTime,
+      price: parseFloat(spotPrice.SpotPrice),
+      timestamp: currentTime,
+      createdAt: currentTime,
+      updatedAt: currentTime,
+      grouping: instanceTypeObj.grouping,
+      providerID: 'ALB'
+    });
   }
 }
 
@@ -83,7 +76,7 @@ async function processSpotPrices(instanceTypeObj, region) {
     console.log(`No prices available for ${instanceTypeObj.name} in ${region.name}`);
     return;
   }
-  
+
   await insertIntoDB(spotPriceHistory, instanceTypeObj, region);
 }
 

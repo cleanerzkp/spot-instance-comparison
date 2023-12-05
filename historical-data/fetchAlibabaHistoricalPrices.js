@@ -3,7 +3,6 @@ const { RPCClient } = require('@alicloud/pop-core');
 const db = require('../models');
 const { SpotPricing, InstanceType, Region } = db;
 
-// Function to format dates to 'YYYY-MM-DDTHH:mm:ss' (ISO 8601 without milliseconds or timezone offset)
 const formatDate = date => date.toISOString().split('.')[0] + 'Z';
 
 async function fetchData() {
@@ -18,14 +17,11 @@ async function fetchData() {
 
 async function fetchAlibabaSpotPrices(instanceType, region) {
     const regionData = await Region.findOne({ where: { providerID: 'ALB', name: region.name } });
-  
     if (!regionData) {
       console.error(`No region data found for ${region.name}`);
       return [];
     }
-  
     const endpoint = `https://ecs.${regionData.name}.aliyuncs.com`;
-  
     const client = new RPCClient({
         accessKeyId: process.env.ALIBABA_ACCESS_KEY_ID,
         accessKeySecret: process.env.ALIBABA_ACCESS_KEY_SECRET,
@@ -34,8 +30,9 @@ async function fetchAlibabaSpotPrices(instanceType, region) {
         opts: { timeout: 10000 }
     });
 
-    const startTime = new Date();
-    startTime.setDate(startTime.getDate() - 30);  // Fetch data for the past 30 days
+    const endTime = new Date(); 
+    const startTime = new Date(endTime);
+    startTime.setDate(startTime.getDate() - 1); 
 
     try {
       const params = {
@@ -43,7 +40,7 @@ async function fetchAlibabaSpotPrices(instanceType, region) {
         NetworkType: 'vpc',
         InstanceType: instanceType.name,
         StartTime: formatDate(startTime),
-        EndTime: formatDate(new Date()),
+        EndTime: formatDate(endTime),
         MaxResults: 500,
       };
       const result = await client.request('DescribeSpotPriceHistory', params);
@@ -56,15 +53,27 @@ async function fetchAlibabaSpotPrices(instanceType, region) {
 
 async function insertIntoDB(spotPriceHistory, instanceTypeObj, region) {
   for (const spotPrice of spotPriceHistory) {
-    await SpotPricing.create({
-      name: instanceTypeObj.name,
-      regionName: region.standardizedRegion,
-      date: new Date(spotPrice.Timestamp),
-      price: parseFloat(spotPrice.SpotPrice),
-      timestamp: new Date(),
-      grouping: instanceTypeObj.grouping,
-      providerID: 'ALB'
+    const existing = await SpotPricing.findOne({
+      where: {
+        name: instanceTypeObj.name,
+        regionName: region.standardizedRegion,
+        date: new Date(spotPrice.Timestamp)
+      }
     });
+
+    if (!existing) {
+      await SpotPricing.create({
+        name: instanceTypeObj.name,
+        regionName: region.standardizedRegion,
+        date: new Date(spotPrice.Timestamp),
+        price: parseFloat(spotPrice.SpotPrice),
+        timestamp: new Date(),
+        grouping: instanceTypeObj.grouping,
+        providerID: 'ALB'
+      });
+    } else {
+      console.log('Record already exists, skipping');
+    }
   }
 }
 
@@ -74,7 +83,7 @@ async function processSpotPrices(instanceTypeObj, region) {
     console.log(`No prices available for ${instanceTypeObj.name} in ${region.name}`);
     return;
   }
-
+  
   await insertIntoDB(spotPriceHistory, instanceTypeObj, region);
 }
 
