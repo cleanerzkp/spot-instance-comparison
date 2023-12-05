@@ -16,7 +16,8 @@ async function fetchData() {
 
 async function fetchAWSSpotPrices(instanceType, region) {
   return new Promise((resolve, reject) => {
-    exec(`aws ec2 describe-spot-price-history --instance-types ${instanceType.name} --region ${region.name} --start-time $(date -u +"%Y-%m-%dT00:00:00Z") --end-time $(date -u +"%Y-%m-%dT%H:%M:%SZ") --product-descriptions "Linux/UNIX" --output json`, (error, stdout, stderr) => {
+    const currentTime = new Date().toISOString();
+    exec(`aws ec2 describe-spot-price-history --instance-types ${instanceType.name} --region ${region.name} --start-time ${currentTime} --end-time ${currentTime} --product-descriptions "Linux/UNIX" --output json`, (error, stdout, stderr) => {
       if (error) {
         console.error(`Error: ${error.message}`);
         return reject(error);
@@ -26,37 +27,28 @@ async function fetchAWSSpotPrices(instanceType, region) {
         return reject(new Error(stderr));
       }
       const result = JSON.parse(stdout);
-      return resolve(result.SpotPriceHistory);
+      return resolve(result.SpotPriceHistory.slice(0, 1)); // Take only the first result
     });
   });
 }
 
 async function insertIntoDB(spotPriceHistory, instanceTypeObj, region) {
+  const currentTime = new Date();
 
-  for (const spotPrice of spotPriceHistory) {
-    const existing = await SpotPricing.findOne({
-      where: {
-        name: instanceTypeObj.name,
-        regionName: region.standardizedRegion, 
-        date: new Date(spotPrice.Timestamp)  
-      }
+  if (spotPriceHistory.length > 0) {
+    const spotPrice = spotPriceHistory[0];
+    await SpotPricing.create({ 
+      name: instanceTypeObj.name,
+      regionName: region.standardizedRegion,
+      date: currentTime,
+      price: parseFloat(spotPrice.SpotPrice),
+      timestamp: currentTime,
+      createdAt: currentTime,
+      updatedAt: currentTime,
+      grouping: instanceTypeObj.grouping,
+      providerID: 'AWS'
     });
-
-    if (!existing) {  
-      
-      await SpotPricing.create({ 
-        name: instanceTypeObj.name,
-        regionName: region.standardizedRegion,
-        date: new Date(spotPrice.Timestamp),
-          
-      });
-    } else {
-      
-      console.log('Record already exists, skipping');  
-    }
-
   }
-
 }
 
 async function processSpotPrices(instanceTypeObj, region) {
