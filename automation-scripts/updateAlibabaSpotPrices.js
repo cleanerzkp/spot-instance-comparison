@@ -89,4 +89,6 @@ async function main() {
   }
 }
 
-main();
+module.exports = async function runAlibabaScript() {
+  await main();
+}

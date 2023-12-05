@@ -74,4 +74,8 @@ async function main() {
   }
 }
 
-main();
+async function runAWSScript() {
+  await main();
+}
+
+module.exports = runAWSScript;

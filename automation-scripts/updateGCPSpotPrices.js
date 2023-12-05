@@ -112,4 +112,6 @@ async function main() {
     }
 }
 
-main();
+module.exports = async function runGCPScript() {
+    await main();
+}

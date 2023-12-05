@@ -71,4 +71,8 @@ async function main() {
   }
 }
 
-main().catch(error => console.error('Error in main function:', error.message));
+main().catch(error => console.error('Error in main function:', error.message));async function runAzureScript() {
+  await main();
+}
+
+module.exports = runAzureScript;
