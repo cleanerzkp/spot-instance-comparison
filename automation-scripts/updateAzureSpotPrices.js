@@ -58,22 +58,17 @@ async function main() {
     return;
   }
 
-  const promises = [];
-
   for (const instanceTypeObj of instanceTypes) {
     for (const region of regions) {
-      promises.push((async () => {
-        const prices = await fetchAzurePrices(instanceTypeObj.name, region);
-        if (prices.length > 0) {
-          await insertIntoDB(prices, instanceTypeObj, region);
-        } else {
-          console.log(`No prices available for ${instanceTypeObj.name} in ${region}`);
-        }
-      })());
+      const prices = await fetchAzurePrices(instanceTypeObj.name, region);
+      if (prices.length > 0) {
+        const lowestPrice = prices.reduce((min, p) => parseFloat(p.retailPrice) < parseFloat(min.retailPrice) ? p : min, prices[0]);
+        await insertIntoDB([lowestPrice], instanceTypeObj, region);
+      } else {
+        console.log(`No prices available for ${instanceTypeObj.name} in ${region}`);
+      }
     }
   }
-
-  await Promise.all(promises);
 }
 
 main().catch(error => console.error('Error in main function:', error.message));
