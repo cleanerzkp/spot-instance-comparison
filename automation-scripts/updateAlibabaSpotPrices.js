@@ -11,14 +11,14 @@ async function fetchData() {
 
   return {
     instanceTypes: instanceTypes.map(it => ({ name: it.name, category: it.category, grouping: it.grouping })),
-    regions: regions.map(r => r.name)
+    regions: regions.map(r => ({ name: r.name, standardizedRegion: r.standardizedRegion }))
   };
 }
 
 async function fetchAlibabaSpotPrices(instanceType, region) {
-    const regionData = await Region.findOne({ where: { providerID: 'ALB', name: region } });
+    const regionData = await Region.findOne({ where: { providerID: 'ALB', name: region.name } });
     if (!regionData) {
-      console.error(`No region data found for ${region}`);
+      console.error(`No region data found for ${region.name}`);
       return [];
     }
     const endpoint = `https://ecs.${regionData.name}.aliyuncs.com`;
@@ -46,29 +46,41 @@ async function fetchAlibabaSpotPrices(instanceType, region) {
       const result = await client.request('DescribeSpotPriceHistory', params);
       return result.SpotPrices.SpotPriceType || [];
     } catch (error) {
-      console.error(`Error fetching Alibaba Spot Prices for ${region} ${instanceType.name}:`, error.message);
+      console.error(`Error fetching Alibaba Spot Prices for ${region.name} ${instanceType.name}:`, error.message);
       return [];
     }
 }
 
 async function insertIntoDB(spotPriceHistory, instanceTypeObj, region) {
   for (const spotPrice of spotPriceHistory) {
-    await SpotPricing.create({
-      name: `${instanceTypeObj.name}-${instanceTypeObj.category}`,
-      regionName: region,
-      date: new Date(spotPrice.Timestamp),
-      price: parseFloat(spotPrice.SpotPrice),
-      timestamp: new Date(),
-      grouping: instanceTypeObj.grouping,
-      providerID: 'ALB'
+    const existing = await SpotPricing.findOne({
+      where: {
+        name: instanceTypeObj.name,
+        regionName: region.standardizedRegion,
+        date: new Date(spotPrice.Timestamp)
+      }
     });
+
+    if (!existing) {
+      await SpotPricing.create({
+        name: instanceTypeObj.name,
+        regionName: region.standardizedRegion,
+        date: new Date(spotPrice.Timestamp),
+        price: parseFloat(spotPrice.SpotPrice),
+        timestamp: new Date(),
+        grouping: instanceTypeObj.grouping,
+        providerID: 'ALB'
+      });
+    } else {
+      console.log('Record already exists, skipping');
+    }
   }
 }
 
 async function processSpotPrices(instanceTypeObj, region) {
   const spotPriceHistory = await fetchAlibabaSpotPrices(instanceTypeObj, region);
   if (spotPriceHistory.length === 0) {
-    console.log(`No prices available for ${instanceTypeObj.name} in ${region}`);
+    console.log(`No prices available for ${instanceTypeObj.name} in ${region.name}`);
     return;
   }
   
@@ -83,7 +95,5 @@ async function main() {
     }
   }
 }
+
 main();
-// module.exports = async function runAlibabaScript() {
-//   await main();
-// }
